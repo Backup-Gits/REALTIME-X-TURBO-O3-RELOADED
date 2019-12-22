@@ -26,19 +26,19 @@ Some Of Them Are Optimizations And New Features Like : >
 
 6. Some Optimizations And Fixes Added .
   
-  * LL-kconfig-add-750Hz-timer-interrupt-kernel-config Thanks To Piotr Górski .
+   * LL-kconfig-add-750Hz-timer-interrupt-kernel-config Thanks To Piotr Górski .
   
-  * zswap-b-tree.patch
+   * zswap-b-tree.patch
   
-  * 0003-v5.3_turbosched-v4.patch
+   * 0003-v5.3_turbosched-v4.patch
   
-  * 0011-ZFS-fix.patch Guix/Linux
+   * 0011-ZFS-fix.patch Guix/Linux
   
-  * -O3 patch To Compile With The Level 3 Of Compilers Optimizations.
+   * -O3 patch To Compile With The Level 3 Of Compilers Optimizations.
   
-  * graysky's GCC patch To Be Able To Select -march=native.
+   * graysky's GCC patch To Be Able To Select -march=native.
   
-  * 0001-ksm-patches.patch userspace-assisted KSM Thanks To  Oleksandr Natalenko .
+   * 0001-ksm-patches.patch userspace-assisted KSM Thanks To  Oleksandr Natalenko .
 
 7. Wireward Patches Updates For 5.4 Kernel. 
    
@@ -46,13 +46,13 @@ Some Of Them Are Optimizations And New Features Like : >
    https://www.wireguard.com/
 
 
-8.Conflict Fixing ETC.
-Carlos Jimenez (JavaShin-X) 2019-2020.
+8. Conflict Fixing ETC.
+   Carlos Jimenez (JavaShin-X) 2019-2020.
 
 
 
 
-* COPYING. =
+ * COPYING. =
 
 The Linux Kernel is provided under:
 
