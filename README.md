@@ -34,29 +34,34 @@ Some Of Them Are Optimizations And New Features Like : >
   
    * zswap-b-tree.patch
   
-   * 0003-v5.3_turbosched-v4.patch
+   * turbosched-v4.patch
   
-   * 0011-ZFS-fix.patch Guix/Linux
+   * ZFS-fix.patch
   
    * -O3 patch To Compile With The Level 3 Of Compilers Optimizations.
   
    * graysky's GCC patch To Be Able To Select -march=native.
   
-   * 0001-ksm-patches.patch userspace-assisted KSM Thanks To  Oleksandr Natalenko .
+   * ksm-patches.patch userspace-assisted KSM Thanks To  Oleksandr Natalenko .
 
 7. Wireward Patches Updates For 5.4 Kernel. 
    
-   * 0001-WireGuard-fast-modern-secure-kernel-VPN-tunnel.patch
    https://www.wireguard.com/
 
+8. UnionFS AUFS
 
-8. Conflict Fixing ETC.
-   Carlos Jimenez (JavaShin-X) 2019-2020.
+9. Conflict Fixing ETC.
+   Carlos Jimenez (JavaShin-X) 2020.
 
 
 
 
- * COPYING. =
+
+
+
+
+
+* COPYING. =
 
 The Linux Kernel is provided under:
 
