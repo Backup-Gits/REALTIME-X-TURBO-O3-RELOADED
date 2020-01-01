@@ -527,7 +527,7 @@ config ZSWAP
 	depends on FRONTSWAP && CRYPTO=y
 	select CRYPTO_LZO if !ZEN_INTERACTIVE
 	select ZPOOL
-    SELECT BTREE
+    select BTREE
 	select CRYPTO_LZ4 if ZEN_INTERACTIVE
 	select Z3FOLD if ZEN_INTERACTIVE
 	help
