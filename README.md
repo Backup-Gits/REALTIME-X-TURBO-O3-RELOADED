@@ -1,8 +1,9 @@
 # REALTIME-X
 
 Pre-Patched Linux Kernel Sources REALTIME-X
-Download Link Google Drive For Now Until I Upload The Full Source Code Here In GitHUB.
-https://drive.google.com/file/d/1NjIOJYHNU4LpDJIu6ro9yscBSEWqVcO-/view?usp=sharing
+Total Rework Update to 5.4.7 Stable Kernel LTS.
+Update 1 < > Added union Aufs Patches For 5.4 Kernel , more.
+
 
 This Linux Kernel Have Some Additions That Are Not In The Main Tree.
 Some Of Them Are Optimizations And New Features Like : >
