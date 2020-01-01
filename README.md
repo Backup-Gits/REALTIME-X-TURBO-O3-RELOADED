@@ -74,8 +74,8 @@ In addition, other licenses may also apply. Please see:
 
 for more details.
 
-### For Gentoo/Linux Only ###
-See < > Clang-COmpiling.md
+### For Gentoo/Linux Only ZFS Inkect Plus Clang Compile ###
+See < > Clang-Compiling.md
 
 
 
