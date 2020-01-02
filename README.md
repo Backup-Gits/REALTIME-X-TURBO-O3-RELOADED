@@ -77,7 +77,8 @@ for more details.
 ### For Gentoo/Linux Only ZFS Inject Plus Clang Compile ###
 See < > Clang-Compiling.md
 
-
+### For Ubuntu/Debian Compilation And ZFS Injection Compilation With GCC ###
+See < > UPGRADED-COMMANDS-FOR-REALTIME-X-ON-UBUNTU-DEBIAN.md
 
 
 
