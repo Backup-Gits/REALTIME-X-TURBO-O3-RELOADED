@@ -1,12 +1,23 @@
 # REALTIME-X-SOURCES
 
 Pre-Patched Linux Kernel Sources REALTIME-X
-Total Rework Update to 5.4.7 Stable Kernel LTS.
-Update 1 < > Added union Aufs Patches For 5.4 Kernel , more.
+Update to 5.4.8 Stable Kernel LTS.
+
+Note : Union Aufs (Experimental).
+
+* Disclaimer. =
+
+This Kernel Patches On Top The Linux Official Kernel Vanilla From Kernel.org Comes With Absolutely
+No Warranty . You Are On Your Own If A Device Get Bricked Well Just Say Bricked In The Name Of Science.
+Just Dont Blame JavaShin .......  
+
+You Have Been Warned.
+Here There Will Be Dragons.
+ 
 
 
-This Linux Kernel Have Some Additions That Are Not In The Main Tree.
-Some Of Them Are Optimizations And New Features Like : >
+* This Linux Kernel Have Some Additions That Are Not In The Main Tree.
+  Some Of Them Are Optimizations And New Features Like : >
 
 1. CONFIG_PREEMPT_RT Patches > https://rt.wiki.kernel.org/index.php/Main_Page
    
