@@ -1113,7 +1113,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			cfg = &killer1650i_2ax_cfg_qu_c0_hr_b0;
 	}
 
-	/* same thing for QuZ... */
+	/* same thing for QuZ Well... */
 	if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QUZ) {
 		if (cfg == &iwl_ax101_cfg_qu_hr)
 			cfg = &iwl_ax101_cfg_quz_hr;
