@@ -59,7 +59,7 @@ const_debug unsigned int sysctl_sched_features =
 #ifdef CONFIG_PREEMPT_RT
 const_debug unsigned int sysctl_sched_nr_migrate = 8;
 #else
-const_debug unsigned int sysctl_sched_nr_migrate = 128;
+const_debug unsigned int sysctl_sched_nr_migrate = 32;
 #endif
 
 /*
@@ -72,9 +72,29 @@ __read_mostly int scheduler_running;
 
 /*
  * part of the period that we allow rt tasks to run in us.
- * LL default: 0.98s
+ * default: 0.95s
  */
-int sysctl_sched_rt_runtime = 980000;
+int sysctl_sched_rt_runtime = 950000;
+
+DEFINE_STATIC_KEY_FALSE(__turbo_sched_enabled);
+static DEFINE_MUTEX(turbo_sched_lock);
+static int turbo_sched_count;
+
+void turbo_sched_get(void)
+{
+	mutex_lock(&turbo_sched_lock);
+	if (!turbo_sched_count++)
+		static_branch_enable(&__turbo_sched_enabled);
+	mutex_unlock(&turbo_sched_lock);
+}
+
+void turbo_sched_put(void)
+{
+	mutex_lock(&turbo_sched_lock);
+	if (!--turbo_sched_count)
+		static_branch_disable(&__turbo_sched_enabled);
+	mutex_unlock(&turbo_sched_lock);
+}
 
 /*
  * __task_rq_lock - lock the rq @p resides on.
@@ -3383,6 +3403,9 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		mmdrop_delayed(mm);
 	}
 	if (unlikely(prev_state == TASK_DEAD)) {
+		if (unlikely(prev->flags & PF_CAN_BE_PACKED))
+			turbo_sched_put();
+
 		if (prev->sched_class->task_dead)
 			prev->sched_class->task_dead(prev);
 
@@ -4866,6 +4889,8 @@ static void __setscheduler_params(struct task_struct *p,
 	p->rt_priority = attr->sched_priority;
 	p->normal_prio = normal_prio(p);
 	set_load_weight(p, true);
+	if (attr->sched_flags & SCHED_FLAG_TASK_PACKING)
+		p->flags |= PF_CAN_BE_PACKED;
 }
 
 /* Actually do priority change: must hold pi & rq lock. */
@@ -4925,6 +4950,8 @@ static int __sched_setscheduler(struct task_struct *p,
 	struct rq_flags rf;
 	int reset_on_fork;
 	int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
+	unsigned long long task_packing_flag =
+				attr->sched_flags & SCHED_FLAG_TASK_PACKING;
 	struct rq *rq;
 
 	/* The pi code expects interrupts enabled */
@@ -5057,6 +5084,8 @@ recheck:
 			goto change;
 		if (attr->sched_flags & SCHED_FLAG_UTIL_CLAMP)
 			goto change;
+		if (task_packing_flag)
+			goto change;
 
 		p->sched_reset_on_fork = reset_on_fork;
 		retval = 0;
@@ -5139,6 +5168,10 @@ change:
 		put_prev_task(rq, p);
 
 	prev_class = p->sched_class;
+
+	/* Refcount tasks classified as jitter task */
+	if (task_packing_flag != (p->flags & PF_CAN_BE_PACKED))
+		(task_packing_flag) ? turbo_sched_get() : turbo_sched_put();
 
 	__setscheduler(rq, p, attr, pi);
 	__setscheduler_uclamp(p, attr);
@@ -5538,6 +5571,9 @@ SYSCALL_DEFINE4(sched_getattr, pid_t, pid, struct sched_attr __user *, uattr,
 	kattr.sched_util_min = p->uclamp_req[UCLAMP_MIN].value;
 	kattr.sched_util_max = p->uclamp_req[UCLAMP_MAX].value;
 #endif
+
+	if (p->flags & PF_CAN_BE_PACKED)
+		kattr.sched_flags |= SCHED_FLAG_TASK_PACKING;
 
 	rcu_read_unlock();
 
@@ -6732,6 +6768,7 @@ static struct kmem_cache *task_group_cache __read_mostly;
 
 DECLARE_PER_CPU(cpumask_var_t, load_balance_mask);
 DECLARE_PER_CPU(cpumask_var_t, select_idle_mask);
+DECLARE_PER_CPU(cpumask_var_t, turbo_sched_mask);
 
 void __init sched_init(void)
 {
@@ -6771,6 +6808,8 @@ void __init sched_init(void)
 		per_cpu(load_balance_mask, i) = (cpumask_var_t)kzalloc_node(
 			cpumask_size(), GFP_KERNEL, cpu_to_node(i));
 		per_cpu(select_idle_mask, i) = (cpumask_var_t)kzalloc_node(
+			cpumask_size(), GFP_KERNEL, cpu_to_node(i));
+		per_cpu(turbo_sched_mask, i) = (cpumask_var_t)kzalloc_node(
 			cpumask_size(), GFP_KERNEL, cpu_to_node(i));
 	}
 #endif /* CONFIG_CPUMASK_OFFSTACK */

@@ -1602,7 +1602,6 @@ int sysctl_compact_unevictable_allowed __read_mostly = 1;
  int sysctl_compact_unevictable_allowed __read_mostly = 1;
 #endif
 
-
 static inline void
 update_fast_start_pfn(struct compact_control *cc, unsigned long pfn)
 {

@@ -1,3 +1,4 @@
+### Needs To Be Fixed Can Be Used as An Example ###
 Dirty Way To Add ZFS Git Master To The Kernel And Compile With Clang HoW-TO :::
 
 clone the repo and copy to /usr/src with the name linux-5.4.7-rt-jsX or what ever after edit Makefile

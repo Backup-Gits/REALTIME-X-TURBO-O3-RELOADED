@@ -1,7 +1,13 @@
 # REALTIME-X-SOURCES
 
 Pre-Patched Linux Kernel Sources REALTIME-X
-Update to 5.4.8 Stable Kernel LTS.
+
+Sunday 12-02-2020. =
+
+Update to 5.4.11 Stable Kernel LTS.
+Updated REALTIME -RT Patch.
+Updated Wireward To Last Revision.
+Fixes - To The Scheduler MuQSS To Make Games Happier.
 
 Note : Union Aufs (Experimental).
 
@@ -99,7 +105,6 @@ See < > Clang-Compiling.md
 
 ### For Ubuntu/Debian Compilation And ZFS Injection Compilation With GCC . ###
 See < > UPGRADED-COMMANDS-FOR-REALTIME-X-ON-UBUNTU-DEBIAN.md
-
 
 
 

@@ -387,7 +387,7 @@ void __ubsan_handle_shift_out_of_bounds(struct shift_out_of_bounds_data *data,
 			lhs_str, rhs_str,
 			lhs_type->type_name);
 
-ubsan_epilogue();
+	ubsan_epilogue();
 out:
 	user_access_restore(ua_flags);
 }
@@ -396,8 +396,9 @@ EXPORT_SYMBOL(__ubsan_handle_shift_out_of_bounds);
 
 void __ubsan_handle_builtin_unreachable(struct unreachable_data *data)
 {
+	ubsan_prologue(&data->location);
 	pr_err("calling __builtin_unreachable()\n");
-ubsan_epilogue();
+	ubsan_epilogue();
 	panic("can't return from __builtin_unreachable()");
 }
 EXPORT_SYMBOL(__ubsan_handle_builtin_unreachable);

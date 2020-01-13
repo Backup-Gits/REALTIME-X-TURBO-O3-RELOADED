@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
 PATCHLEVEL = 4
-SUBLEVEL = 8
+SUBLEVEL = 11
 EXTRAVERSION = -rt-jsX
 NAME = JavaShin-X RealTime-X
 

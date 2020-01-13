@@ -70,6 +70,12 @@ unsigned int sysctl_sched_rt_period = 1000000;
 
 __read_mostly int scheduler_running;
 
+/*
+ * part of the period that we allow rt tasks to run in us.
+ * LL default: 0.98s
+ */
+int sysctl_sched_rt_runtime = 980000;
+
 DEFINE_STATIC_KEY_FALSE(__turbo_sched_enabled);
 static DEFINE_MUTEX(turbo_sched_lock);
 static int turbo_sched_count;
@@ -89,12 +95,6 @@ void turbo_sched_put(void)
 		static_branch_disable(&__turbo_sched_enabled);
 	mutex_unlock(&turbo_sched_lock);
 }
-
-/*
- * part of the period that we allow rt tasks to run in us.
- * LL default: 0.98s
- */
-int sysctl_sched_rt_runtime = 980000;
 
 /*
  * __task_rq_lock - lock the rq @p resides on.
