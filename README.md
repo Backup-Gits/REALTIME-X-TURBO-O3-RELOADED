@@ -12,6 +12,8 @@ Updated Wireward To Last Revision.
 
 Fixes - To The Scheduler MuQSS To Make Games Happier.
 
+Kernel Now Have ZfsOnLinux By Default Can Be Compiled As Module Or Built-IN.
+
 Note : Union Aufs (Experimental).
 
 * Disclaimer. =
@@ -103,7 +105,7 @@ In addition, other licenses may also apply. Please see:
 
 for more details.
 
-### For Gentoo/Linux Only ZFS Inject Plus Clang Compile . ###
+### For Gentoo/Linux Only ZFS Inject Plus Clang Compile . ### 
 See < > Clang-Compiling.md
 
 ### For Ubuntu/Debian Compilation And ZFS Injection Compilation With GCC . ###
