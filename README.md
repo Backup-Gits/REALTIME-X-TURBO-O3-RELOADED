@@ -2,9 +2,9 @@
 
 Pre-Patched Linux Kernel Sources REALTIME-X
 
-Sunday 12-02-2020. =
+Sunday 21-01-2020. =
 
-Update to 5.4.11 Stable Kernel LTS.
+Update to 5.4.13 Stable Kernel LTS.
 
 Updated REALTIME -RT Patch.
 
@@ -14,7 +14,7 @@ Fixes - To The Scheduler MuQSS To Make Games Happier.
 
 Kernel Now Have ZfsOnLinux By Default Can Be Compiled As Module Or Built-IN.
 
-Note : Union Aufs (Experimental).
+Union Aufs Updated.
 
 * Disclaimer. =
 
