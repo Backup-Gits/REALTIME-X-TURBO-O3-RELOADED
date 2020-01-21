@@ -62,15 +62,15 @@ modules_install-Linux:
 	$(MAKE) -C /usr/src/linux M=`pwd` modules_install \
 		INSTALL_MOD_PATH=$(DESTDIR)$(INSTALL_MOD_PATH) \
 		INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) \
-		KERNELRELEASE=5.4.11-rt-jsX-ga97741995
+		KERNELRELEASE=5.4.13-rt-jsX-g27a8bd348-dirty
 	@# Remove extraneous build products when packaging
-	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.11-rt-jsX-ga97741995; \
+	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.13-rt-jsX-g27a8bd348-dirty; \
 	if [ -n "$(DESTDIR)" ]; then \
 		find $$kmoddir -name 'modules.*' | xargs $(RM); \
 	fi
-	sysmap=$(DESTDIR)$(INSTALL_MOD_PATH)/boot/System.map-5.4.11-rt-jsX-ga97741995; \
+	sysmap=$(DESTDIR)$(INSTALL_MOD_PATH)/boot/System.map-5.4.13-rt-jsX-g27a8bd348-dirty; \
 	if [ -f $$sysmap ]; then \
-		depmod -ae -F $$sysmap 5.4.11-rt-jsX-ga97741995; \
+		depmod -ae -F $$sysmap 5.4.13-rt-jsX-g27a8bd348-dirty; \
 	fi
 
 CTAGS: ctags
@@ -104,7 +104,7 @@ modules_install: modules_install-Linux
 
 modules_uninstall-Linux:
 	@# Uninstall the kernel modules
-	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.11-rt-jsX-ga97741995
+	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.13-rt-jsX-g27a8bd348-dirty
 	list='$(obj-m)'; for objdir in $$list; do \
 		$(RM) -R $$kmoddir/$(INSTALL_MOD_DIR)/$$objdir; \
 	done
