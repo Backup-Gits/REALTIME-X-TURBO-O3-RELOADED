@@ -41,7 +41,7 @@
 #include <sys/dmu_tx.h>
 #include <sys/dsl_pool.h>
 #include <sys/metaslab.h>
-#include <sys/trace_zil.h>
+#include <sys/trace_zfs.h>
 #include <sys/abd.h>
 
 /*
@@ -135,8 +135,6 @@ unsigned long zil_slog_bulk = 768 * 1024;
 static kmem_cache_t *zil_lwb_cache;
 static kmem_cache_t *zil_zcw_cache;
 
-static void zil_async_to_sync(zilog_t *zilog, uint64_t foid);
-
 #define	LWB_EMPTY(lwb) ((BP_GET_LSIZE(&lwb->lwb_blk) - \
     sizeof (zil_chain_t)) == (lwb->lwb_sz - lwb->lwb_nused))
 
@@ -146,11 +144,11 @@ zil_bp_compare(const void *x1, const void *x2)
 	const dva_t *dva1 = &((zil_bp_node_t *)x1)->zn_dva;
 	const dva_t *dva2 = &((zil_bp_node_t *)x2)->zn_dva;
 
-	int cmp = AVL_CMP(DVA_GET_VDEV(dva1), DVA_GET_VDEV(dva2));
+	int cmp = TREE_CMP(DVA_GET_VDEV(dva1), DVA_GET_VDEV(dva2));
 	if (likely(cmp))
 		return (cmp);
 
-	return (AVL_CMP(DVA_GET_OFFSET(dva1), DVA_GET_OFFSET(dva2)));
+	return (TREE_CMP(DVA_GET_OFFSET(dva1), DVA_GET_OFFSET(dva2)));
 }
 
 static void
@@ -535,7 +533,7 @@ zil_lwb_vdev_compare(const void *x1, const void *x2)
 	const uint64_t v1 = ((zil_vdev_node_t *)x1)->zv_vdev;
 	const uint64_t v2 = ((zil_vdev_node_t *)x2)->zv_vdev;
 
-	return (AVL_CMP(v1, v2));
+	return (TREE_CMP(v1, v2));
 }
 
 static lwb_t *
@@ -1875,7 +1873,7 @@ zil_aitx_compare(const void *x1, const void *x2)
 	const uint64_t o1 = ((itx_async_node_t *)x1)->ia_foid;
 	const uint64_t o2 = ((itx_async_node_t *)x2)->ia_foid;
 
-	return (AVL_CMP(o1, o2));
+	return (TREE_CMP(o1, o2));
 }
 
 /*
@@ -2095,7 +2093,7 @@ zil_get_commit_list(zilog_t *zilog)
 /*
  * Move the async itxs for a specified object to commit into sync lists.
  */
-static void
+void
 zil_async_to_sync(zilog_t *zilog, uint64_t foid)
 {
 	uint64_t otxg, txg;
@@ -3649,7 +3647,6 @@ zil_reset(const char *osname, void *arg)
 	return (0);
 }
 
-#if defined(_KERNEL)
 EXPORT_SYMBOL(zil_alloc);
 EXPORT_SYMBOL(zil_free);
 EXPORT_SYMBOL(zil_open);
@@ -3674,19 +3671,18 @@ EXPORT_SYMBOL(zil_set_sync);
 EXPORT_SYMBOL(zil_set_logbias);
 
 /* BEGIN CSTYLED */
-module_param(zfs_commit_timeout_pct, int, 0644);
-MODULE_PARM_DESC(zfs_commit_timeout_pct, "ZIL block open timeout percentage");
+ZFS_MODULE_PARAM(zfs, zfs_, commit_timeout_pct, INT, ZMOD_RW,
+	"ZIL block open timeout percentage");
 
-module_param(zil_replay_disable, int, 0644);
-MODULE_PARM_DESC(zil_replay_disable, "Disable intent logging replay");
+ZFS_MODULE_PARAM(zfs_zil, zil_, replay_disable, INT, ZMOD_RW,
+	"Disable intent logging replay");
 
-module_param(zil_nocacheflush, int, 0644);
-MODULE_PARM_DESC(zil_nocacheflush, "Disable ZIL cache flushes");
+ZFS_MODULE_PARAM(zfs_zil, zil_, nocacheflush, INT, ZMOD_RW,
+	"Disable ZIL cache flushes");
 
-module_param(zil_slog_bulk, ulong, 0644);
-MODULE_PARM_DESC(zil_slog_bulk, "Limit in bytes slog sync writes per commit");
+ZFS_MODULE_PARAM(zfs_zil, zil_, slog_bulk, ULONG, ZMOD_RW,
+	"Limit in bytes slog sync writes per commit");
 
-module_param(zil_maxblocksize, int, 0644);
-MODULE_PARM_DESC(zil_maxblocksize, "Limit in bytes of ZIL log block size");
+ZFS_MODULE_PARAM(zfs_zil, zil_, maxblocksize, INT, ZMOD_RW,
+	"Limit in bytes of ZIL log block size");
 /* END CSTYLED */
-#endif

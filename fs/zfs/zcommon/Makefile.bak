@@ -1,4 +1,4 @@
-src = /usr/src/zfs-0.8.3/module/zcommon
+src = /var/tmp/portage/sys-fs/zfs-kmod-9999/work/zfs-kmod-9999/module/zcommon
 target_cpu = x86_64
 
 MODULE := zcommon
@@ -8,9 +8,7 @@ obj-$(CONFIG_ZFS) := $(MODULE).o
 ccflags-y := $(ZFS_MODULE_CFLAGS) $(ZFS_MODULE_CPPFLAGS)
 
 # Suppress unused-value warnings in sparc64 architecture headers
-ifeq ($(target_cpu),sparc64)
-ccflags-y += -Wno-unused-value
-endif
+ccflags-$(CONFIG_SPARC64) += -Wno-unused-value
 
 $(MODULE)-objs += zfeature_common.o
 $(MODULE)-objs += zfs_comutil.o

@@ -28,8 +28,8 @@
 #include <sys/crypto/icp.h>
 #include <sys/crypto/impl.h>
 #include <sys/byteorder.h>
+#include <sys/simd.h>
 #include <modes/gcm_impl.h>
-#include <linux/simd.h>
 
 #define	GHASH(c, d, t, o) \
 	xor_block((uint8_t *)(d), (uint8_t *)(c)->gcm_ghash); \
@@ -67,7 +67,9 @@ gcm_mode_encrypt_contiguous_blocks(gcm_ctx_t *ctx, char *data, size_t length,
 		    (uint8_t *)ctx->gcm_remainder + ctx->gcm_remainder_len,
 		    length);
 		ctx->gcm_remainder_len += length;
-		ctx->gcm_copy_to = datap;
+		if (ctx->gcm_copy_to == NULL) {
+			ctx->gcm_copy_to = datap;
+		}
 		return (CRYPTO_SUCCESS);
 	}
 
@@ -300,11 +302,13 @@ gcm_mode_decrypt_contiguous_blocks(gcm_ctx_t *ctx, char *data, size_t length,
 	if (length > 0) {
 		new_len = ctx->gcm_pt_buf_len + length;
 		new = vmem_alloc(new_len, ctx->gcm_kmflag);
+		if (new == NULL) {
+			vmem_free(ctx->gcm_pt_buf, ctx->gcm_pt_buf_len);
+			ctx->gcm_pt_buf = NULL;
+			return (CRYPTO_HOST_MEMORY);
+		}
 		bcopy(ctx->gcm_pt_buf, new, ctx->gcm_pt_buf_len);
 		vmem_free(ctx->gcm_pt_buf, ctx->gcm_pt_buf_len);
-		if (new == NULL)
-			return (CRYPTO_HOST_MEMORY);
-
 		ctx->gcm_pt_buf = new;
 		ctx->gcm_pt_buf_len = new_len;
 		bcopy(data, &ctx->gcm_pt_buf[ctx->gcm_processed_data_len],
@@ -807,7 +811,6 @@ gcm_impl_set(const char *val)
 }
 
 #if defined(_KERNEL)
-#include <linux/mod_compat.h>
 
 static int
 icp_gcm_impl_set(const char *val, zfs_kernel_param_t *kp)

@@ -1,4 +1,4 @@
-src = /usr/src/zfs-0.8.3/module/lua
+src = /var/tmp/portage/sys-fs/zfs-kmod-9999/work/zfs-kmod-9999/module/lua
 
 MODULE := zlua
 

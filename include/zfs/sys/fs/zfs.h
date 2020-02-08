@@ -115,7 +115,7 @@ typedef enum {
 	ZFS_PROP_READONLY,
 	ZFS_PROP_ZONED,
 	ZFS_PROP_SNAPDIR,
-	ZFS_PROP_PRIVATE,		/* not exposed to user, temporary */
+	ZFS_PROP_ACLMODE,
 	ZFS_PROP_ACLINHERIT,
 	ZFS_PROP_CREATETXG,
 	ZFS_PROP_NAME,			/* not exposed to the user */
@@ -181,9 +181,11 @@ typedef enum {
 	ZFS_PROP_ENCRYPTION_ROOT,
 	ZFS_PROP_KEY_GUID,
 	ZFS_PROP_KEYSTATUS,
-	ZFS_PROP_REMAPTXG,		/* not exposed to the user */
+	ZFS_PROP_REMAPTXG,		/* obsolete - no longer used */
 	ZFS_PROP_SPECIAL_SMALL_BLOCKS,
 	ZFS_PROP_IVSET_GUID,		/* not exposed to the user */
+	ZFS_PROP_REDACTED,
+	ZFS_PROP_REDACT_SNAPS,
 	ZFS_NUM_PROPS
 } zfs_prop_t;
 
@@ -208,8 +210,7 @@ extern const char *zfs_userquota_prop_prefixes[ZFS_NUM_USERQUOTA_PROPS];
 /*
  * Pool properties are identified by these constants and must be added to the
  * end of this list to ensure that external consumers are not affected
- * by the change. If you make any changes to this list, be sure to update
- * the property table in module/zcommon/zpool_prop.c.
+ * by the change.  Properties must be registered in zfs_prop_init().
  */
 typedef enum {
 	ZPOOL_PROP_INVAL = -1,
@@ -769,6 +770,8 @@ typedef struct zpool_load_policy {
 	"com.delphix:obsolete_counts_are_precise"
 #define	VDEV_TOP_ZAP_POOL_CHECKPOINT_SM \
 	"com.delphix:pool_checkpoint_sm"
+#define	VDEV_TOP_ZAP_MS_UNFLUSHED_PHYS_TXGS \
+	"com.delphix:ms_unflushed_phys_txgs"
 
 #define	VDEV_TOP_ZAP_ALLOCATION_BIAS \
 	"org.zfsonlinux:allocation_bias"
@@ -984,7 +987,7 @@ typedef enum dsl_scan_state {
 } dsl_scan_state_t;
 
 /*
- * Errata described by http://zfsonlinux.org/msg/ZFS-8000-ER.  The ordering
+ * Errata described by https://zfsonlinux.org/msg/ZFS-8000-ER.  The ordering
  * of this enum must be maintained to ensure the errata identifiers map to
  * the correct documentation.  New errata may only be appended to the list
  * and must contain corresponding documentation at the above link.
@@ -1187,9 +1190,13 @@ typedef enum {
  */
 typedef enum zfs_ioc {
 	/*
-	 * illumos - 81/128 numbers reserved.
+	 * Core features - 81/128 numbers reserved.
 	 */
+#ifdef __FreeBSD__
+	ZFS_IOC_FIRST =	0,
+#else
 	ZFS_IOC_FIRST =	('Z' << 8),
+#endif
 	ZFS_IOC = ZFS_IOC_FIRST,
 	ZFS_IOC_POOL_CREATE = ZFS_IOC_FIRST,	/* 0x5a00 */
 	ZFS_IOC_POOL_DESTROY,			/* 0x5a01 */
@@ -1272,20 +1279,20 @@ typedef enum zfs_ioc {
 	ZFS_IOC_POOL_DISCARD_CHECKPOINT,	/* 0x5a4e */
 	ZFS_IOC_POOL_INITIALIZE,		/* 0x5a4f */
 	ZFS_IOC_POOL_TRIM,			/* 0x5a50 */
+	ZFS_IOC_REDACT,				/* 0x5a51 */
+	ZFS_IOC_GET_BOOKMARK_PROPS,		/* 0x5a52 */
+	ZFS_IOC_WAIT,				/* 0x5a53 */
 
 	/*
-	 * Linux - 3/64 numbers reserved.
+	 * Per-platform (Optional) - 6/128 numbers reserved.
 	 */
-	ZFS_IOC_LINUX = ('Z' << 8) + 0x80,
-	ZFS_IOC_EVENTS_NEXT,			/* 0x5a81 */
-	ZFS_IOC_EVENTS_CLEAR,			/* 0x5a82 */
-	ZFS_IOC_EVENTS_SEEK,			/* 0x5a83 */
-
-	/*
-	 * FreeBSD - 1/64 numbers reserved.
-	 */
-	ZFS_IOC_FREEBSD = ('Z' << 8) + 0xC0,
-
+	ZFS_IOC_PLATFORM = ZFS_IOC_FIRST + 0x80,
+	ZFS_IOC_EVENTS_NEXT,			/* 0x81 (Linux) */
+	ZFS_IOC_EVENTS_CLEAR,			/* 0x82 (Linux) */
+	ZFS_IOC_EVENTS_SEEK,			/* 0x83 (Linux) */
+	ZFS_IOC_NEXTBOOT,			/* 0x84 (FreeBSD) */
+	ZFS_IOC_JAIL,				/* 0x85 (FreeBSD) */
+	ZFS_IOC_UNJAIL,				/* 0x86 (FreeBSD) */
 	ZFS_IOC_LAST
 } zfs_ioc_t;
 
@@ -1318,6 +1325,7 @@ typedef enum {
 	ZFS_ERR_FROM_IVSET_GUID_MISSING,
 	ZFS_ERR_FROM_IVSET_GUID_MISMATCH,
 	ZFS_ERR_SPILL_BLOCK_FLAG_MISSING,
+	ZFS_ERR_UNKNOWN_SEND_STREAM_FEATURE,
 	ZFS_ERR_EXPORT_IN_PROGRESS,
 } zfs_errno_t;
 
@@ -1333,6 +1341,17 @@ typedef enum {
 	SPA_LOAD_ERROR,		/* load failed		*/
 	SPA_LOAD_CREATE		/* creation in progress */
 } spa_load_state_t;
+
+typedef enum {
+	ZPOOL_WAIT_CKPT_DISCARD,
+	ZPOOL_WAIT_FREE,
+	ZPOOL_WAIT_INITIALIZE,
+	ZPOOL_WAIT_REPLACE,
+	ZPOOL_WAIT_REMOVE,
+	ZPOOL_WAIT_RESILVER,
+	ZPOOL_WAIT_SCRUB,
+	ZPOOL_WAIT_NUM_ACTIVITIES
+} zpool_wait_activity_t;
 
 /*
  * Bookmark name values.
@@ -1383,6 +1402,13 @@ typedef enum {
 #define	ZPOOL_TRIM_VDEVS		"trim_vdevs"
 #define	ZPOOL_TRIM_RATE			"trim_rate"
 #define	ZPOOL_TRIM_SECURE		"trim_secure"
+
+/*
+ * The following are names used when invoking ZFS_IOC_POOL_WAIT.
+ */
+#define	ZPOOL_WAIT_ACTIVITY		"wait_activity"
+#define	ZPOOL_WAIT_TAG			"wait_tag"
+#define	ZPOOL_WAIT_WAITED		"wait_waited"
 
 /*
  * Flags for ZFS_IOC_VDEV_SET_STATE

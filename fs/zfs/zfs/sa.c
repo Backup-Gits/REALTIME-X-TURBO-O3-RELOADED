@@ -252,7 +252,7 @@ layout_num_compare(const void *arg1, const void *arg2)
 	const sa_lot_t *node1 = (const sa_lot_t *)arg1;
 	const sa_lot_t *node2 = (const sa_lot_t *)arg2;
 
-	return (AVL_CMP(node1->lot_num, node2->lot_num));
+	return (TREE_CMP(node1->lot_num, node2->lot_num));
 }
 
 static int
@@ -261,11 +261,11 @@ layout_hash_compare(const void *arg1, const void *arg2)
 	const sa_lot_t *node1 = (const sa_lot_t *)arg1;
 	const sa_lot_t *node2 = (const sa_lot_t *)arg2;
 
-	int cmp = AVL_CMP(node1->lot_hash, node2->lot_hash);
+	int cmp = TREE_CMP(node1->lot_hash, node2->lot_hash);
 	if (likely(cmp))
 		return (cmp);
 
-	return (AVL_CMP(node1->lot_instance, node2->lot_instance));
+	return (TREE_CMP(node1->lot_instance, node2->lot_instance));
 }
 
 boolean_t
@@ -1237,7 +1237,7 @@ sa_byteswap(sa_handle_t *hdl, sa_buf_type_t buftype)
 	dmu_buf_impl_t *db;
 	int num_lengths = 1;
 	int i;
-	ASSERTV(sa_os_t *sa = hdl->sa_os->os_sa);
+	sa_os_t *sa __maybe_unused = hdl->sa_os->os_sa;
 
 	ASSERT(MUTEX_HELD(&sa->sa_lock));
 	if (sa_hdr_phys->sa_magic == SA_MAGIC)
@@ -1344,7 +1344,7 @@ sa_idx_tab_rele(objset_t *os, void *arg)
 static void
 sa_idx_tab_hold(objset_t *os, sa_idx_tab_t *idx_tab)
 {
-	ASSERTV(sa_os_t *sa = os->os_sa);
+	sa_os_t *sa __maybe_unused = os->os_sa;
 
 	ASSERT(MUTEX_HELD(&sa->sa_lock));
 	(void) zfs_refcount_add(&idx_tab->sa_refcount, NULL);
@@ -1586,7 +1586,7 @@ sa_add_projid(sa_handle_t *hdl, dmu_tx_t *tx, uint64_t projid)
 		    &ctime, 16);
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CRTIME(zfsvfs), NULL,
 		    &crtime, 16);
-		if (S_ISBLK(ZTOI(zp)->i_mode) || S_ISCHR(ZTOI(zp)->i_mode))
+		if (Z_ISBLK(ZTOTYPE(zp)) || Z_ISCHR(ZTOTYPE(zp)))
 			SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_RDEV(zfsvfs), NULL,
 			    &rdev, 8);
 	} else {
@@ -1625,7 +1625,7 @@ sa_add_projid(sa_handle_t *hdl, dmu_tx_t *tx, uint64_t projid)
 
 	zp->z_projid = projid;
 	zp->z_pflags |= ZFS_PROJID;
-	links = ZTOI(zp)->i_nlink;
+	links = ZTONLNK(zp);
 	count = 0;
 	err = 0;
 
@@ -1646,7 +1646,7 @@ sa_add_projid(sa_handle_t *hdl, dmu_tx_t *tx, uint64_t projid)
 	SA_ADD_BULK_ATTR(attrs, count, SA_ZPL_LINKS(zfsvfs), NULL, &links, 8);
 	SA_ADD_BULK_ATTR(attrs, count, SA_ZPL_PROJID(zfsvfs), NULL, &projid, 8);
 
-	if (S_ISBLK(ZTOI(zp)->i_mode) || S_ISCHR(ZTOI(zp)->i_mode))
+	if (Z_ISBLK(ZTOTYPE(zp)) || Z_ISCHR(ZTOTYPE(zp)))
 		SA_ADD_BULK_ATTR(attrs, count, SA_ZPL_RDEV(zfsvfs), NULL,
 		    &rdev, 8);
 

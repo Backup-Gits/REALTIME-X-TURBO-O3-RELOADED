@@ -29,7 +29,7 @@
 #include <sys/zfs_debug.h>
 #include <sys/vdev_raidz.h>
 #include <sys/vdev_raidz_impl.h>
-#include <linux/simd.h>
+#include <sys/simd.h>
 
 extern boolean_t raidz_will_scalar_work(void);
 
@@ -66,6 +66,9 @@ const raidz_impl_ops_t *raidz_all_maths[] = {
 #if defined(__aarch64__)
 	&vdev_raidz_aarch64_neon_impl,
 	&vdev_raidz_aarch64_neonx2_impl,
+#endif
+#if defined(__powerpc__)
+	&vdev_raidz_powerpc_altivec_impl,
 #endif
 };
 
@@ -627,8 +630,7 @@ vdev_raidz_impl_set(const char *val)
 	return (err);
 }
 
-#if defined(_KERNEL)
-#include <linux/mod_compat.h>
+#if defined(_KERNEL) && defined(__linux__)
 
 static int
 zfs_vdev_raidz_impl_set(const char *val, zfs_kernel_param_t *kp)

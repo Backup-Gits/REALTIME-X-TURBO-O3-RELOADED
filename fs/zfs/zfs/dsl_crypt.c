@@ -854,7 +854,7 @@ spa_keystore_load_wkey(const char *dsname, dsl_crypto_params_t *dcp,
 	dsl_pool_rele(dp, FTAG);
 
 	/* create any zvols under this ds */
-	zvol_create_minors(dp->dp_spa, dsname, B_TRUE);
+	zvol_create_minors_recursive(dsname);
 
 	return (0);
 
@@ -921,7 +921,7 @@ spa_keystore_unload_wkey(const char *dsname)
 	 * Wait for any outstanding txg IO to complete, releasing any
 	 * remaining references on the wkey.
 	 */
-	if (spa_mode(spa) != FREAD)
+	if (spa_mode(spa) != SPA_MODE_READ)
 		txg_wait_synced(spa->spa_dsl_pool, 0);
 
 	spa_close(spa, FTAG);
@@ -2894,8 +2894,5 @@ error:
 	return (ret);
 }
 
-#if defined(_KERNEL)
-module_param(zfs_disable_ivset_guid_check, int, 0644);
-MODULE_PARM_DESC(zfs_disable_ivset_guid_check,
+ZFS_MODULE_PARAM(zfs, zfs_, disable_ivset_guid_check, INT, ZMOD_RW,
 	"Set to allow raw receives without IVset guids");
-#endif

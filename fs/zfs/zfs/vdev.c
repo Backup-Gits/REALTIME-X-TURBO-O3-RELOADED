@@ -77,7 +77,7 @@ int vdev_validate_skip = B_FALSE;
  * Since the DTL space map of a vdev is not expected to have a lot of
  * entries, we default its block size to 4K.
  */
-int vdev_dtl_sm_blksz = (1 << 12);
+int zfs_vdev_dtl_sm_blksz = (1 << 12);
 
 /*
  * Rate limit slow IO (delay) events to this many per second.
@@ -100,7 +100,7 @@ int zfs_scan_ignore_errors = 0;
  * the end of each transaction can benefit from a higher I/O bandwidth
  * (e.g. vdev_obsolete_sm), thus we default their block size to 128K.
  */
-int vdev_standard_sm_blksz = (1 << 17);
+int zfs_vdev_standard_sm_blksz = (1 << 17);
 
 /*
  * Tunable parameter for debugging or performance analysis. Setting this
@@ -217,7 +217,7 @@ vdev_getops(const char *type)
 
 /* ARGSUSED */
 void
-vdev_default_xlate(vdev_t *vd, const range_seg_t *in, range_seg_t *res)
+vdev_default_xlate(vdev_t *vd, const range_seg64_t *in, range_seg64_t *res)
 {
 	res->rs_start = in->rs_start;
 	res->rs_end = in->rs_end;
@@ -529,7 +529,8 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 
 	rw_init(&vd->vdev_indirect_rwlock, NULL, RW_DEFAULT, NULL);
 	mutex_init(&vd->vdev_obsolete_lock, NULL, MUTEX_DEFAULT, NULL);
-	vd->vdev_obsolete_segments = range_tree_create(NULL, NULL);
+	vd->vdev_obsolete_segments = range_tree_create(NULL, RANGE_SEG64, NULL,
+	    0, 0);
 
 	/*
 	 * Initialize rate limit structs for events.  We rate limit ZIO delay
@@ -562,7 +563,8 @@ vdev_alloc_common(spa_t *spa, uint_t id, uint64_t guid, vdev_ops_t *ops)
 	cv_init(&vd->vdev_trim_io_cv, NULL, CV_DEFAULT, NULL);
 
 	for (int t = 0; t < DTL_TYPES; t++) {
-		vd->vdev_dtl[t] = range_tree_create(NULL, NULL);
+		vd->vdev_dtl[t] = range_tree_create(NULL, RANGE_SEG64, NULL, 0,
+		    0);
 	}
 	txg_list_create(&vd->vdev_ms_list, spa,
 	    offsetof(struct metaslab, ms_txg_node));
@@ -925,6 +927,7 @@ vdev_free(vdev_t *vd)
 	if (vd->vdev_mg != NULL) {
 		vdev_metaslab_fini(vd);
 		metaslab_group_destroy(vd->vdev_mg);
+		vd->vdev_mg = NULL;
 	}
 
 	ASSERT0(vd->vdev_stat.vs_space);
@@ -1353,6 +1356,13 @@ vdev_metaslab_init(vdev_t *vd, uint64_t txg)
 
 	if (txg == 0)
 		spa_config_exit(spa, SCL_ALLOC, FTAG);
+
+	/*
+	 * Regardless whether this vdev was just added or it is being
+	 * expanded, the metaslab count has changed. Recalculate the
+	 * block limit.
+	 */
+	spa_log_sm_set_blocklimit(spa);
 
 	return (0);
 }
@@ -2187,7 +2197,7 @@ void
 vdev_close(vdev_t *vd)
 {
 	vdev_t *pvd = vd->vdev_parent;
-	ASSERTV(spa_t *spa = vd->vdev_spa);
+	spa_t *spa __maybe_unused = vd->vdev_spa;
 
 	ASSERT(spa_config_held(spa, SCL_STATE_ALL, RW_WRITER) == SCL_STATE_ALL);
 
@@ -2526,14 +2536,11 @@ vdev_dtl_need_resilver(vdev_t *vd, uint64_t offset, size_t psize)
 static uint64_t
 vdev_dtl_min(vdev_t *vd)
 {
-	range_seg_t *rs;
-
 	ASSERT(MUTEX_HELD(&vd->vdev_dtl_lock));
 	ASSERT3U(range_tree_space(vd->vdev_dtl[DTL_MISSING]), !=, 0);
 	ASSERT0(vd->vdev_children);
 
-	rs = avl_first(&vd->vdev_dtl[DTL_MISSING]->rt_root);
-	return (rs->rs_start - 1);
+	return (range_tree_min(vd->vdev_dtl[DTL_MISSING]) - 1);
 }
 
 /*
@@ -2542,14 +2549,11 @@ vdev_dtl_min(vdev_t *vd)
 static uint64_t
 vdev_dtl_max(vdev_t *vd)
 {
-	range_seg_t *rs;
-
 	ASSERT(MUTEX_HELD(&vd->vdev_dtl_lock));
 	ASSERT3U(range_tree_space(vd->vdev_dtl[DTL_MISSING]), !=, 0);
 	ASSERT0(vd->vdev_children);
 
-	rs = avl_last(&vd->vdev_dtl[DTL_MISSING]->rt_root);
-	return (rs->rs_end);
+	return (range_tree_max(vd->vdev_dtl[DTL_MISSING]));
 }
 
 /*
@@ -2862,7 +2866,7 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 	if (vd->vdev_dtl_sm == NULL) {
 		uint64_t new_object;
 
-		new_object = space_map_alloc(mos, vdev_dtl_sm_blksz, tx);
+		new_object = space_map_alloc(mos, zfs_vdev_dtl_sm_blksz, tx);
 		VERIFY3U(new_object, !=, 0);
 
 		VERIFY0(space_map_open(&vd->vdev_dtl_sm, mos, new_object,
@@ -2870,13 +2874,13 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 		ASSERT(vd->vdev_dtl_sm != NULL);
 	}
 
-	rtsync = range_tree_create(NULL, NULL);
+	rtsync = range_tree_create(NULL, RANGE_SEG64, NULL, 0, 0);
 
 	mutex_enter(&vd->vdev_dtl_lock);
 	range_tree_walk(rt, range_tree_add, rtsync);
 	mutex_exit(&vd->vdev_dtl_lock);
 
-	space_map_truncate(vd->vdev_dtl_sm, vdev_dtl_sm_blksz, tx);
+	space_map_truncate(vd->vdev_dtl_sm, zfs_vdev_dtl_sm_blksz, tx);
 	space_map_write(vd->vdev_dtl_sm, rtsync, SM_ALLOC, SM_NO_VDEVID, tx);
 	range_tree_vacate(rtsync, NULL, NULL);
 
@@ -3167,6 +3171,25 @@ vdev_validate_aux(vdev_t *vd)
 	return (0);
 }
 
+static void
+vdev_destroy_ms_flush_data(vdev_t *vd, dmu_tx_t *tx)
+{
+	objset_t *mos = spa_meta_objset(vd->vdev_spa);
+
+	if (vd->vdev_top_zap == 0)
+		return;
+
+	uint64_t object = 0;
+	int err = zap_lookup(mos, vd->vdev_top_zap,
+	    VDEV_TOP_ZAP_MS_UNFLUSHED_PHYS_TXGS, sizeof (uint64_t), 1, &object);
+	if (err == ENOENT)
+		return;
+
+	VERIFY0(dmu_object_free(mos, object, tx));
+	VERIFY0(zap_remove(mos, vd->vdev_top_zap,
+	    VDEV_TOP_ZAP_MS_UNFLUSHED_PHYS_TXGS, tx));
+}
+
 /*
  * Free the objects used to store this vdev's spacemaps, and the array
  * that points to them.
@@ -3194,6 +3217,7 @@ vdev_destroy_spacemaps(vdev_t *vd, dmu_tx_t *tx)
 
 	kmem_free(smobj_array, array_bytes);
 	VERIFY0(dmu_object_free(mos, vd->vdev_ms_array, tx));
+	vdev_destroy_ms_flush_data(vd, tx);
 	vd->vdev_ms_array = 0;
 }
 
@@ -3228,20 +3252,6 @@ vdev_sync_done(vdev_t *vd, uint64_t txg)
 	while ((msp = txg_list_remove(&vd->vdev_ms_list, TXG_CLEAN(txg)))
 	    != NULL)
 		metaslab_sync_done(msp, txg);
-
-	/*
-	 * Because this function is only called on dirty vdevs, it's possible
-	 * we won't consider all metaslabs for unloading on every
-	 * txg. However, unless the system is largely idle it is likely that
-	 * we will dirty all vdevs within a few txgs.
-	 */
-	for (int i = 0; i < vd->vdev_ms_count; i++) {
-		msp = vd->vdev_ms[i];
-		mutex_enter(&msp->ms_lock);
-		if (msp->ms_sm != NULL)
-			metaslab_potentially_unload(msp, txg);
-		mutex_exit(&msp->ms_lock);
-	}
 
 	if (reassess)
 		metaslab_sync_reassess(vd->vdev_mg);
@@ -4736,7 +4746,8 @@ vdev_clear_resilver_deferred(vdev_t *vd, dmu_tx_t *tx)
  * translation function to do the real conversion.
  */
 void
-vdev_xlate(vdev_t *vd, const range_seg_t *logical_rs, range_seg_t *physical_rs)
+vdev_xlate(vdev_t *vd, const range_seg64_t *logical_rs,
+    range_seg64_t *physical_rs)
 {
 	/*
 	 * Walk up the vdev tree
@@ -4763,14 +4774,42 @@ vdev_xlate(vdev_t *vd, const range_seg_t *logical_rs, range_seg_t *physical_rs)
 	 * range into its physical components by calling the
 	 * vdev specific translate function.
 	 */
-	range_seg_t intermediate = { { { 0, 0 } } };
+	range_seg64_t intermediate = { 0 };
 	pvd->vdev_ops->vdev_op_xlate(vd, physical_rs, &intermediate);
 
 	physical_rs->rs_start = intermediate.rs_start;
 	physical_rs->rs_end = intermediate.rs_end;
 }
 
-#if defined(_KERNEL)
+/*
+ * Look at the vdev tree and determine whether any devices are currently being
+ * replaced.
+ */
+boolean_t
+vdev_replace_in_progress(vdev_t *vdev)
+{
+	ASSERT(spa_config_held(vdev->vdev_spa, SCL_ALL, RW_READER) != 0);
+
+	if (vdev->vdev_ops == &vdev_replacing_ops)
+		return (B_TRUE);
+
+	/*
+	 * A 'spare' vdev indicates that we have a replace in progress, unless
+	 * it has exactly two children, and the second, the hot spare, has
+	 * finished being resilvered.
+	 */
+	if (vdev->vdev_ops == &vdev_spare_ops && (vdev->vdev_children > 2 ||
+	    !vdev_dtl_empty(vdev->vdev_child[1], DTL_MISSING)))
+		return (B_TRUE);
+
+	for (int i = 0; i < vdev->vdev_children; i++) {
+		if (vdev_replace_in_progress(vdev->vdev_child[i]))
+			return (B_TRUE);
+	}
+
+	return (B_FALSE);
+}
+
 EXPORT_SYMBOL(vdev_fault);
 EXPORT_SYMBOL(vdev_degrade);
 EXPORT_SYMBOL(vdev_online);
@@ -4778,36 +4817,31 @@ EXPORT_SYMBOL(vdev_offline);
 EXPORT_SYMBOL(vdev_clear);
 
 /* BEGIN CSTYLED */
-module_param(zfs_vdev_default_ms_count, int, 0644);
-MODULE_PARM_DESC(zfs_vdev_default_ms_count,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_count, INT, ZMOD_RW,
 	"Target number of metaslabs per top-level vdev");
 
-module_param(zfs_vdev_min_ms_count, int, 0644);
-MODULE_PARM_DESC(zfs_vdev_min_ms_count,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, default_ms_shift, INT, ZMOD_RW,
+	"Default limit for metaslab size");
+
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, min_ms_count, INT, ZMOD_RW,
 	"Minimum number of metaslabs per top-level vdev");
 
-module_param(zfs_vdev_ms_count_limit, int, 0644);
-MODULE_PARM_DESC(zfs_vdev_ms_count_limit,
+ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, ms_count_limit, INT, ZMOD_RW,
 	"Practical upper limit of total metaslabs per top-level vdev");
 
-module_param(zfs_slow_io_events_per_second, uint, 0644);
-MODULE_PARM_DESC(zfs_slow_io_events_per_second,
+ZFS_MODULE_PARAM(zfs, zfs_, slow_io_events_per_second, UINT, ZMOD_RW,
 	"Rate limit slow IO (delay) events to this many per second");
 
-module_param(zfs_checksum_events_per_second, uint, 0644);
-MODULE_PARM_DESC(zfs_checksum_events_per_second, "Rate limit checksum events "
-	"to this many checksum errors per second (do not set below zed"
-	"threshold).");
+ZFS_MODULE_PARAM(zfs, zfs_, checksum_events_per_second, UINT, ZMOD_RW,
+	"Rate limit checksum events to this many checksum errors per second "
+	"(do not set below zed threshold).");
 
-module_param(zfs_scan_ignore_errors, int, 0644);
-MODULE_PARM_DESC(zfs_scan_ignore_errors,
+ZFS_MODULE_PARAM(zfs, zfs_, scan_ignore_errors, INT, ZMOD_RW,
 	"Ignore errors during resilver/scrub");
 
-module_param(vdev_validate_skip, int, 0644);
-MODULE_PARM_DESC(vdev_validate_skip,
+ZFS_MODULE_PARAM(zfs_vdev, vdev_, validate_skip, INT, ZMOD_RW,
 	"Bypass vdev_validate()");
 
-module_param(zfs_nocacheflush, int, 0644);
-MODULE_PARM_DESC(zfs_nocacheflush, "Disable cache flushes");
+ZFS_MODULE_PARAM(zfs, zfs_, nocacheflush, INT, ZMOD_RW,
+	"Disable cache flushes");
 /* END CSTYLED */
-#endif

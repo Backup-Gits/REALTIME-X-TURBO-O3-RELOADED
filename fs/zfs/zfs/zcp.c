@@ -100,6 +100,7 @@
 #include <sys/zcp_iter.h>
 #include <sys/zcp_prop.h>
 #include <sys/zcp_global.h>
+#include <sys/zvol.h>
 
 #ifndef KM_NORMALPRI
 #define	KM_NORMALPRI	0
@@ -1155,6 +1156,7 @@ zcp_eval(const char *poolname, const char *program, boolean_t sync,
 	runinfo.zri_space_used = 0;
 	runinfo.zri_curinstrs = 0;
 	runinfo.zri_maxinstrs = instrlimit;
+	runinfo.zri_new_zvols = fnvlist_alloc();
 
 	if (sync) {
 		err = dsl_sync_task_sig(poolname, NULL, zcp_eval_sync,
@@ -1165,6 +1167,16 @@ zcp_eval(const char *poolname, const char *program, boolean_t sync,
 		zcp_eval_open(&runinfo, poolname);
 	}
 	lua_close(state);
+
+	/*
+	 * Create device minor nodes for any new zvols.
+	 */
+	for (nvpair_t *pair = nvlist_next_nvpair(runinfo.zri_new_zvols, NULL);
+	    pair != NULL;
+	    pair = nvlist_next_nvpair(runinfo.zri_new_zvols, pair)) {
+		zvol_create_minor(nvpair_name(pair));
+	}
+	fnvlist_free(runinfo.zri_new_zvols);
 
 	return (runinfo.zri_result);
 }
@@ -1434,14 +1446,10 @@ zcp_parse_args(lua_State *state, const char *fname, const zcp_arg_t *pargs,
 	}
 }
 
-#if defined(_KERNEL)
 /* BEGIN CSTYLED */
-module_param(zfs_lua_max_instrlimit, ulong, 0644);
-MODULE_PARM_DESC(zfs_lua_max_instrlimit,
+ZFS_MODULE_PARAM(zfs_lua, zfs_lua_, max_instrlimit, ULONG, ZMOD_RW,
 	"Max instruction limit that can be specified for a channel program");
 
-module_param(zfs_lua_max_memlimit, ulong, 0644);
-MODULE_PARM_DESC(zfs_lua_max_memlimit,
+ZFS_MODULE_PARAM(zfs_lua, zfs_lua_, max_memlimit, ULONG, ZMOD_RW,
 	"Max memory limit that can be specified for a channel program");
 /* END CSTYLED */
-#endif
