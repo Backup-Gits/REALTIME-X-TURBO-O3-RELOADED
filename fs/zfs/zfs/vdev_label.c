@@ -932,7 +932,7 @@ vdev_inuse(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason,
 	 */
 	if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
 	    (spa = spa_by_guid(pool_guid, device_guid)) != NULL &&
-	    spa_mode(spa) == SPA_MODE_READ)
+	    spa_mode(spa) == FREAD)
 		state = POOL_STATE_ACTIVE;
 
 	/*
@@ -1197,12 +1197,12 @@ retry:
 static int
 vdev_uberblock_compare(const uberblock_t *ub1, const uberblock_t *ub2)
 {
-	int cmp = TREE_CMP(ub1->ub_txg, ub2->ub_txg);
+	int cmp = AVL_CMP(ub1->ub_txg, ub2->ub_txg);
 
 	if (likely(cmp))
 		return (cmp);
 
-	cmp = TREE_CMP(ub1->ub_timestamp, ub2->ub_timestamp);
+	cmp = AVL_CMP(ub1->ub_timestamp, ub2->ub_timestamp);
 	if (likely(cmp))
 		return (cmp);
 
@@ -1226,7 +1226,7 @@ vdev_uberblock_compare(const uberblock_t *ub1, const uberblock_t *ub2)
 	if (MMP_VALID(ub2) && MMP_SEQ_VALID(ub2))
 		seq2 = MMP_SEQ(ub2);
 
-	return (TREE_CMP(seq1, seq2));
+	return (AVL_CMP(seq1, seq2));
 }
 
 struct ubl_cbdata {

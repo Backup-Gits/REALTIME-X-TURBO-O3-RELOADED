@@ -43,7 +43,7 @@
 
 #if defined(HAVE_SSE2)
 
-#include <sys/simd.h>
+#include <linux/simd_x86.h>
 #include <sys/spa_checksum.h>
 #include <sys/byteorder.h>
 #include <sys/strings.h>

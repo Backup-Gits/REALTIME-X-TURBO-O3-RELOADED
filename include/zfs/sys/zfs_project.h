@@ -32,7 +32,7 @@
 #endif
 #endif
 
-#include <sys/vfs.h>
+#include <linux/fs.h>
 
 #ifdef FS_PROJINHERIT_FL
 #define	ZFS_PROJINHERIT_FL	FS_PROJINHERIT_FL

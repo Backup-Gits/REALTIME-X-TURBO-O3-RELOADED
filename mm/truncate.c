@@ -360,6 +360,13 @@ void truncate_inode_pages_range(struct address_space *mapping,
 				continue;
 			}
 			pagevec_add(&locked_pvec, page);
+			if (mapping->a_ops->batch_lock_tabu)
+				/*
+				 * the file system doesn't allow to hold
+				 * many pages locked, while calling
+				 * ->invalidatepage() for one of them
+				 */
+				break;
 		}
 		for (i = 0; i < pagevec_count(&locked_pvec); i++)
 			truncate_cleanup_page(mapping, locked_pvec.pages[i]);

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2017 by Delphix. All rights reserved.
  * Copyright 2016 Gary Mills
  * Copyright (c) 2017, 2019, Datto Inc. All rights reserved.
  * Copyright 2019 Joyent, Inc.
@@ -279,7 +279,7 @@ struct dsl_scan_io_queue {
 
 	/* trees used for sorting I/Os and extents of I/Os */
 	range_tree_t	*q_exts_by_addr;
-	zfs_btree_t		q_exts_by_size;
+	avl_tree_t	q_exts_by_size;
 	avl_tree_t	q_sios_by_addr;
 	uint64_t	q_sio_memused;
 
@@ -653,8 +653,7 @@ dsl_scan_sync_state(dsl_scan_t *scn, dmu_tx_t *tx, state_sync_type_t sync_type)
 
 			mutex_enter(&vd->vdev_scan_io_queue_lock);
 			ASSERT3P(avl_first(&q->q_sios_by_addr), ==, NULL);
-			ASSERT3P(zfs_btree_first(&q->q_exts_by_size, NULL), ==,
-			    NULL);
+			ASSERT3P(avl_first(&q->q_exts_by_size), ==, NULL);
 			ASSERT3P(range_tree_first(q->q_exts_by_addr), ==, NULL);
 			mutex_exit(&vd->vdev_scan_io_queue_lock);
 		}
@@ -767,8 +766,7 @@ dsl_scan_setup_sync(void *arg, dmu_tx_t *tx)
 
 	spa_history_log_internal(spa, "scan setup", tx,
 	    "func=%u mintxg=%llu maxtxg=%llu",
-	    *funcp, (u_longlong_t)scn->scn_phys.scn_min_txg,
-	    (u_longlong_t)scn->scn_phys.scn_max_txg);
+	    *funcp, scn->scn_phys.scn_min_txg, scn->scn_phys.scn_max_txg);
 }
 
 /*
@@ -872,17 +870,15 @@ dsl_scan_done(dsl_scan_t *scn, boolean_t complete, dmu_tx_t *tx)
 
 	scn->scn_phys.scn_state = complete ? DSS_FINISHED : DSS_CANCELED;
 
-	spa_notify_waiters(spa);
-
 	if (dsl_scan_restarting(scn, tx))
 		spa_history_log_internal(spa, "scan aborted, restarting", tx,
-		    "errors=%llu", (u_longlong_t)spa_get_errlog_size(spa));
+		    "errors=%llu", spa_get_errlog_size(spa));
 	else if (!complete)
 		spa_history_log_internal(spa, "scan cancelled", tx,
-		    "errors=%llu", (u_longlong_t)spa_get_errlog_size(spa));
+		    "errors=%llu", spa_get_errlog_size(spa));
 	else
 		spa_history_log_internal(spa, "scan done", tx,
-		    "errors=%llu", (u_longlong_t)spa_get_errlog_size(spa));
+		    "errors=%llu", spa_get_errlog_size(spa));
 
 	if (DSL_SCAN_IS_SCRUB_RESILVER(scn)) {
 		spa->spa_scrub_started = B_FALSE;
@@ -1011,7 +1007,6 @@ dsl_scrub_pause_resume_sync(void *arg, dmu_tx_t *tx)
 		scn->scn_phys_cached.scn_flags |= DSF_SCRUB_PAUSED;
 		dsl_scan_sync_state(scn, tx, SYNC_CACHED);
 		spa_event_notify(spa, NULL, NULL, ESC_ZFS_SCRUB_PAUSED);
-		spa_notify_waiters(spa);
 	} else {
 		ASSERT3U(*cmd, ==, POOL_SCRUB_NORMAL);
 		if (dsl_scan_is_paused_scrub(scn)) {
@@ -1211,8 +1206,8 @@ dsl_scan_should_clear(dsl_scan_t *scn)
 		queue = tvd->vdev_scan_io_queue;
 		if (queue != NULL) {
 			/* # extents in exts_by_size = # in exts_by_addr */
-			mused += zfs_btree_numnodes(&queue->q_exts_by_size) *
-			    sizeof (range_seg_gap_t) + queue->q_sio_memused;
+			mused += avl_numnodes(&queue->q_exts_by_size) *
+			    sizeof (range_seg_t) + queue->q_sio_memused;
 		}
 		mutex_exit(&tvd->vdev_scan_io_queue_lock);
 	}
@@ -1328,7 +1323,6 @@ dsl_scan_zil_block(zilog_t *zilog, blkptr_t *bp, void *arg, uint64_t claim_txg)
 	zil_header_t *zh = zsa->zsa_zh;
 	zbookmark_phys_t zb;
 
-	ASSERT(!BP_IS_REDACTED(bp));
 	if (BP_IS_HOLE(bp) || bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
 		return (0);
 
@@ -1361,7 +1355,6 @@ dsl_scan_zil_record(zilog_t *zilog, lr_t *lrc, void *arg, uint64_t claim_txg)
 		blkptr_t *bp = &lr->lr_blkptr;
 		zbookmark_phys_t zb;
 
-		ASSERT(!BP_IS_REDACTED(bp));
 		if (BP_IS_HOLE(bp) ||
 		    bp->blk_birth <= scn->scn_phys.scn_cur_min_txg)
 			return (0);
@@ -1506,7 +1499,7 @@ dsl_scan_prefetch(scan_prefetch_ctx_t *spc, blkptr_t *bp, zbookmark_phys_t *zb)
 	spa_t *spa = scn->scn_dp->dp_spa;
 	scan_prefetch_issue_ctx_t *spic;
 
-	if (zfs_no_scrub_prefetch || BP_IS_REDACTED(bp))
+	if (zfs_no_scrub_prefetch)
 		return;
 
 	if (BP_IS_HOLE(bp) || bp->blk_birth <= scn->scn_phys.scn_cur_min_txg ||
@@ -1758,8 +1751,6 @@ dsl_scan_recurse(dsl_scan_t *scn, dsl_dataset_t *ds, dmu_objset_type_t ostype,
 	int zio_flags = ZIO_FLAG_CANFAIL | ZIO_FLAG_SCAN_THREAD;
 	int err;
 
-	ASSERT(!BP_IS_REDACTED(bp));
-
 	if (BP_GET_LEVEL(bp) > 0) {
 		arc_flags_t flags = ARC_FLAG_WAIT;
 		int i;
@@ -1910,12 +1901,6 @@ dsl_scan_visitbp(blkptr_t *bp, const zbookmark_phys_t *zb,
 
 	if (BP_IS_HOLE(bp)) {
 		scn->scn_holes_this_txg++;
-		return;
-	}
-
-	if (BP_IS_REDACTED(bp)) {
-		ASSERT(dsl_dataset_feature_is_active(ds,
-		    SPA_FEATURE_REDACTED_DATASETS));
 		return;
 	}
 
@@ -2816,7 +2801,7 @@ scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
 
 	srch_sio = sio_alloc(1);
 	srch_sio->sio_nr_dvas = 1;
-	SIO_SET_OFFSET(srch_sio, rs_get_start(rs, queue->q_exts_by_addr));
+	SIO_SET_OFFSET(srch_sio, rs->rs_start);
 
 	/*
 	 * The exact start of the extent might not contain any matching zios,
@@ -2828,12 +2813,10 @@ scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
 	if (sio == NULL)
 		sio = avl_nearest(&queue->q_sios_by_addr, idx, AVL_AFTER);
 
-	while (sio != NULL && SIO_GET_OFFSET(sio) < rs_get_end(rs,
-	    queue->q_exts_by_addr) && num_sios <= 32) {
-		ASSERT3U(SIO_GET_OFFSET(sio), >=, rs_get_start(rs,
-		    queue->q_exts_by_addr));
-		ASSERT3U(SIO_GET_END_OFFSET(sio), <=, rs_get_end(rs,
-		    queue->q_exts_by_addr));
+	while (sio != NULL &&
+	    SIO_GET_OFFSET(sio) < rs->rs_end && num_sios <= 32) {
+		ASSERT3U(SIO_GET_OFFSET(sio), >=, rs->rs_start);
+		ASSERT3U(SIO_GET_END_OFFSET(sio), <=, rs->rs_end);
 
 		next_sio = AVL_NEXT(&queue->q_sios_by_addr, sio);
 		avl_remove(&queue->q_sios_by_addr, sio);
@@ -2851,19 +2834,16 @@ scan_io_queue_gather(dsl_scan_io_queue_t *queue, range_seg_t *rs, list_t *list)
 	 * in the segment we update it to reflect the work we were able to
 	 * complete. Otherwise, we remove it from the range tree entirely.
 	 */
-	if (sio != NULL && SIO_GET_OFFSET(sio) < rs_get_end(rs,
-	    queue->q_exts_by_addr)) {
+	if (sio != NULL && SIO_GET_OFFSET(sio) < rs->rs_end) {
 		range_tree_adjust_fill(queue->q_exts_by_addr, rs,
 		    -bytes_issued);
 		range_tree_resize_segment(queue->q_exts_by_addr, rs,
-		    SIO_GET_OFFSET(sio), rs_get_end(rs,
-		    queue->q_exts_by_addr) - SIO_GET_OFFSET(sio));
+		    SIO_GET_OFFSET(sio), rs->rs_end - SIO_GET_OFFSET(sio));
 
 		return (B_TRUE);
 	} else {
-		uint64_t rstart = rs_get_start(rs, queue->q_exts_by_addr);
-		uint64_t rend = rs_get_end(rs, queue->q_exts_by_addr);
-		range_tree_remove(queue->q_exts_by_addr, rstart, rend - rstart);
+		range_tree_remove(queue->q_exts_by_addr, rs->rs_start,
+		    rs->rs_end - rs->rs_start);
 		return (B_FALSE);
 	}
 }
@@ -2883,7 +2863,6 @@ static range_seg_t *
 scan_io_queue_fetch_ext(dsl_scan_io_queue_t *queue)
 {
 	dsl_scan_t *scn = queue->q_scn;
-	range_tree_t *rt = queue->q_exts_by_addr;
 
 	ASSERT(MUTEX_HELD(&queue->q_vd->vdev_scan_io_queue_lock));
 	ASSERT(scn->scn_is_sorted);
@@ -2891,26 +2870,9 @@ scan_io_queue_fetch_ext(dsl_scan_io_queue_t *queue)
 	/* handle tunable overrides */
 	if (scn->scn_checkpointing || scn->scn_clearing) {
 		if (zfs_scan_issue_strategy == 1) {
-			return (range_tree_first(rt));
+			return (range_tree_first(queue->q_exts_by_addr));
 		} else if (zfs_scan_issue_strategy == 2) {
-			/*
-			 * We need to get the original entry in the by_addr
-			 * tree so we can modify it.
-			 */
-			range_seg_t *size_rs =
-			    zfs_btree_first(&queue->q_exts_by_size, NULL);
-			if (size_rs == NULL)
-				return (NULL);
-			uint64_t start = rs_get_start(size_rs, rt);
-			uint64_t size = rs_get_end(size_rs, rt) - start;
-			range_seg_t *addr_rs = range_tree_find(rt, start,
-			    size);
-			ASSERT3P(addr_rs, !=, NULL);
-			ASSERT3U(rs_get_start(size_rs, rt), ==,
-			    rs_get_start(addr_rs, rt));
-			ASSERT3U(rs_get_end(size_rs, rt), ==,
-			    rs_get_end(addr_rs, rt));
-			return (addr_rs);
+			return (avl_first(&queue->q_exts_by_size));
 		}
 	}
 
@@ -2924,24 +2886,9 @@ scan_io_queue_fetch_ext(dsl_scan_io_queue_t *queue)
 	 * In this case, we instead switch to issuing extents in LBA order.
 	 */
 	if (scn->scn_checkpointing) {
-		return (range_tree_first(rt));
+		return (range_tree_first(queue->q_exts_by_addr));
 	} else if (scn->scn_clearing) {
-		/*
-		 * We need to get the original entry in the by_addr
-		 * tree so we can modify it.
-		 */
-		range_seg_t *size_rs = zfs_btree_first(&queue->q_exts_by_size,
-		    NULL);
-		if (size_rs == NULL)
-			return (NULL);
-		uint64_t start = rs_get_start(size_rs, rt);
-		uint64_t size = rs_get_end(size_rs, rt) - start;
-		range_seg_t *addr_rs = range_tree_find(rt, start, size);
-		ASSERT3P(addr_rs, !=, NULL);
-		ASSERT3U(rs_get_start(size_rs, rt), ==, rs_get_start(addr_rs,
-		    rt));
-		ASSERT3U(rs_get_end(size_rs, rt), ==, rs_get_end(addr_rs, rt));
-		return (addr_rs);
+		return (avl_first(&queue->q_exts_by_size));
 	} else {
 		return (NULL);
 	}
@@ -3164,18 +3111,8 @@ dsl_scan_update_stats(dsl_scan_t *scn)
 }
 
 static int
-bpobj_dsl_scan_free_block_cb(void *arg, const blkptr_t *bp, boolean_t bp_freed,
-    dmu_tx_t *tx)
+dsl_scan_obsolete_block_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 {
-	ASSERT(!bp_freed);
-	return (dsl_scan_free_block_cb(arg, bp, tx));
-}
-
-static int
-dsl_scan_obsolete_block_cb(void *arg, const blkptr_t *bp, boolean_t bp_freed,
-    dmu_tx_t *tx)
-{
-	ASSERT(!bp_freed);
 	dsl_scan_t *scn = arg;
 	const dva_t *dva = &bp->blk_dva[0];
 
@@ -3194,7 +3131,6 @@ dsl_scan_active(dsl_scan_t *scn)
 {
 	spa_t *spa = scn->scn_dp->dp_spa;
 	uint64_t used = 0, comp, uncomp;
-	boolean_t clones_left;
 
 	if (spa->spa_load_state != SPA_LOAD_NONE)
 		return (B_FALSE);
@@ -3208,8 +3144,7 @@ dsl_scan_active(dsl_scan_t *scn)
 		(void) bpobj_space(&scn->scn_dp->dp_free_bpobj,
 		    &used, &comp, &uncomp);
 	}
-	clones_left = spa_livelist_delete_check(spa);
-	return ((used != 0) || (clones_left));
+	return (used != 0);
 }
 
 static boolean_t
@@ -3306,7 +3241,7 @@ dsl_process_async_destroys(dsl_pool_t *dp, dmu_tx_t *tx)
 		scn->scn_zio_root = zio_root(spa, NULL,
 		    NULL, ZIO_FLAG_MUSTSUCCEED);
 		err = bpobj_iterate(&dp->dp_free_bpobj,
-		    bpobj_dsl_scan_free_block_cb, scn, tx);
+		    dsl_scan_free_block_cb, scn, tx);
 		VERIFY0(zio_wait(scn->scn_zio_root));
 		scn->scn_zio_root = NULL;
 
@@ -3403,15 +3338,12 @@ dsl_process_async_destroys(dsl_pool_t *dp, dmu_tx_t *tx)
 		    -dsl_dir_phys(dp->dp_free_dir)->dd_uncompressed_bytes, tx);
 	}
 
-	if (dp->dp_free_dir != NULL && !scn->scn_async_destroying &&
-	    !spa_livelist_delete_check(spa)) {
+	if (dp->dp_free_dir != NULL && !scn->scn_async_destroying) {
 		/* finished; verify that space accounting went to zero */
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_used_bytes);
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_compressed_bytes);
 		ASSERT0(dsl_dir_phys(dp->dp_free_dir)->dd_uncompressed_bytes);
 	}
-
-	spa_notify_waiters(spa);
 
 	EQUIV(bpobj_is_open(&dp->dp_obsolete_bpobj),
 	    0 == zap_contains(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
@@ -4045,10 +3977,9 @@ scan_exec_io(dsl_pool_t *dp, const blkptr_t *bp, int zio_flags,
 static int
 ext_size_compare(const void *x, const void *y)
 {
-	const range_seg_gap_t *rsa = x, *rsb = y;
-
-	uint64_t sa = rsa->rs_end - rsa->rs_start;
-	uint64_t sb = rsb->rs_end - rsb->rs_start;
+	const range_seg_t *rsa = x, *rsb = y;
+	uint64_t sa = rsa->rs_end - rsa->rs_start,
+	    sb = rsb->rs_end - rsb->rs_start;
 	uint64_t score_a, score_b;
 
 	score_a = rsa->rs_fill + ((((rsa->rs_fill << 7) / sa) *
@@ -4077,7 +4008,7 @@ sio_addr_compare(const void *x, const void *y)
 {
 	const scan_io_t *a = x, *b = y;
 
-	return (TREE_CMP(SIO_GET_OFFSET(a), SIO_GET_OFFSET(b)));
+	return (AVL_CMP(SIO_GET_OFFSET(a), SIO_GET_OFFSET(b)));
 }
 
 /* IO queues are created on demand when they are needed. */
@@ -4091,8 +4022,8 @@ scan_io_queue_create(vdev_t *vd)
 	q->q_vd = vd;
 	q->q_sio_memused = 0;
 	cv_init(&q->q_zio_cv, NULL, CV_DEFAULT, NULL);
-	q->q_exts_by_addr = range_tree_create_impl(&rt_btree_ops, RANGE_SEG_GAP,
-	    &q->q_exts_by_size, 0, 0, ext_size_compare, zfs_scan_max_ext_gap);
+	q->q_exts_by_addr = range_tree_create_impl(&rt_avl_ops,
+	    &q->q_exts_by_size, ext_size_compare, zfs_scan_max_ext_gap);
 	avl_create(&q->q_sios_by_addr, sio_addr_compare,
 	    sizeof (scan_io_t), offsetof(scan_io_t, sio_nodes.sio_addr_node));
 
@@ -4299,62 +4230,74 @@ dsl_scan_assess_vdev(dsl_pool_t *dp, vdev_t *vd)
 		spa_async_request(dp->dp_spa, SPA_ASYNC_RESILVER);
 }
 
-/* BEGIN CSTYLED */
-ZFS_MODULE_PARAM(zfs, zfs_, scan_vdev_limit, ULONG, ZMOD_RW,
+#if defined(_KERNEL)
+/* CSTYLED */
+module_param(zfs_scan_vdev_limit, ulong, 0644);
+MODULE_PARM_DESC(zfs_scan_vdev_limit,
 	"Max bytes in flight per leaf vdev for scrubs and resilvers");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scrub_min_time_ms, INT, ZMOD_RW,
-	"Min millisecs to scrub per txg");
+module_param(zfs_scrub_min_time_ms, int, 0644);
+MODULE_PARM_DESC(zfs_scrub_min_time_ms, "Min millisecs to scrub per txg");
 
-ZFS_MODULE_PARAM(zfs, zfs_, obsolete_min_time_ms, INT, ZMOD_RW,
-	"Min millisecs to obsolete per txg");
+module_param(zfs_obsolete_min_time_ms, int, 0644);
+MODULE_PARM_DESC(zfs_obsolete_min_time_ms, "Min millisecs to obsolete per txg");
 
-ZFS_MODULE_PARAM(zfs, zfs_, free_min_time_ms, INT, ZMOD_RW,
-	"Min millisecs to free per txg");
+module_param(zfs_free_min_time_ms, int, 0644);
+MODULE_PARM_DESC(zfs_free_min_time_ms, "Min millisecs to free per txg");
 
-ZFS_MODULE_PARAM(zfs, zfs_, resilver_min_time_ms, INT, ZMOD_RW,
-	"Min millisecs to resilver per txg");
+module_param(zfs_resilver_min_time_ms, int, 0644);
+MODULE_PARM_DESC(zfs_resilver_min_time_ms, "Min millisecs to resilver per txg");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_suspend_progress, INT, ZMOD_RW,
+module_param(zfs_scan_suspend_progress, int, 0644);
+MODULE_PARM_DESC(zfs_scan_suspend_progress,
 	"Set to prevent scans from progressing");
 
-ZFS_MODULE_PARAM(zfs, zfs_, no_scrub_io, INT, ZMOD_RW,
-	"Set to disable scrub I/O");
+module_param(zfs_no_scrub_io, int, 0644);
+MODULE_PARM_DESC(zfs_no_scrub_io, "Set to disable scrub I/O");
 
-ZFS_MODULE_PARAM(zfs, zfs_, no_scrub_prefetch, INT, ZMOD_RW,
-	"Set to disable scrub prefetching");
+module_param(zfs_no_scrub_prefetch, int, 0644);
+MODULE_PARM_DESC(zfs_no_scrub_prefetch, "Set to disable scrub prefetching");
 
-ZFS_MODULE_PARAM(zfs, zfs_, async_block_max_blocks, ULONG, ZMOD_RW,
+/* CSTYLED */
+module_param(zfs_async_block_max_blocks, ulong, 0644);
+MODULE_PARM_DESC(zfs_async_block_max_blocks,
 	"Max number of blocks freed in one txg");
 
-ZFS_MODULE_PARAM(zfs, zfs_, free_bpobj_enabled, INT, ZMOD_RW,
-	"Enable processing of the free_bpobj");
+module_param(zfs_free_bpobj_enabled, int, 0644);
+MODULE_PARM_DESC(zfs_free_bpobj_enabled, "Enable processing of the free_bpobj");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_mem_lim_fact, INT, ZMOD_RW,
-	"Fraction of RAM for scan hard limit");
+module_param(zfs_scan_mem_lim_fact, int, 0644);
+MODULE_PARM_DESC(zfs_scan_mem_lim_fact, "Fraction of RAM for scan hard limit");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_issue_strategy, INT, ZMOD_RW,
-	"IO issuing strategy during scrubbing. "
-	"0 = default, 1 = LBA, 2 = size");
+module_param(zfs_scan_issue_strategy, int, 0644);
+MODULE_PARM_DESC(zfs_scan_issue_strategy,
+	"IO issuing strategy during scrubbing. 0 = default, 1 = LBA, 2 = size");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_legacy, INT, ZMOD_RW,
-	"Scrub using legacy non-sequential method");
+module_param(zfs_scan_legacy, int, 0644);
+MODULE_PARM_DESC(zfs_scan_legacy, "Scrub using legacy non-sequential method");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_checkpoint_intval, INT, ZMOD_RW,
+module_param(zfs_scan_checkpoint_intval, int, 0644);
+MODULE_PARM_DESC(zfs_scan_checkpoint_intval,
 	"Scan progress on-disk checkpointing interval");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_max_ext_gap, ULONG, ZMOD_RW,
+/* CSTYLED */
+module_param(zfs_scan_max_ext_gap, ulong, 0644);
+MODULE_PARM_DESC(zfs_scan_max_ext_gap,
 	"Max gap in bytes between sequential scrub / resilver I/Os");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_mem_lim_soft_fact, INT, ZMOD_RW,
+module_param(zfs_scan_mem_lim_soft_fact, int, 0644);
+MODULE_PARM_DESC(zfs_scan_mem_lim_soft_fact,
 	"Fraction of hard limit used as soft limit");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_strict_mem_lim, INT, ZMOD_RW,
+module_param(zfs_scan_strict_mem_lim, int, 0644);
+MODULE_PARM_DESC(zfs_scan_strict_mem_lim,
 	"Tunable to attempt to reduce lock contention");
 
-ZFS_MODULE_PARAM(zfs, zfs_, scan_fill_weight, INT, ZMOD_RW,
+module_param(zfs_scan_fill_weight, int, 0644);
+MODULE_PARM_DESC(zfs_scan_fill_weight,
 	"Tunable to adjust bias towards more filled segments during scans");
 
-ZFS_MODULE_PARAM(zfs, zfs_, resilver_disable_defer, INT, ZMOD_RW,
+module_param(zfs_resilver_disable_defer, int, 0644);
+MODULE_PARM_DESC(zfs_resilver_disable_defer,
 	"Process all resilvers immediately");
-/* END CSTYLED */
+#endif

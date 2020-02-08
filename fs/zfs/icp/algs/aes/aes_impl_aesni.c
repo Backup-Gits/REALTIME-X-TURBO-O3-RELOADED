@@ -24,8 +24,7 @@
 
 #if defined(__x86_64) && defined(HAVE_AES)
 
-#include <sys/simd.h>
-#include <sys/types.h>
+#include <linux/simd_x86.h>
 
 /* These functions are used to execute AES-NI instructions: */
 extern int rijndael_key_setup_enc_intel(uint32_t rk[],

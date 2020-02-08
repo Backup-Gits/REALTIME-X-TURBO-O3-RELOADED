@@ -103,6 +103,8 @@ config GENTOO_LINUX_INIT_SYSTEMD
 
 	select AUTOFS4_FS
 	select BLK_DEV_BSG
+	select BPF_SYSCALL
+	select CGROUP_BPF
 	select CGROUPS
 	select CHECKPOINT_RESTORE
 	select CRYPTO_HMAC 

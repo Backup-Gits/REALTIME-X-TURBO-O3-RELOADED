@@ -1,27 +1,88 @@
-From cc1e8428435bbb7f28ba1e390356e2ca92f31b50 Mon Sep 17 00:00:00 2001
-From: "Kernel Builder (gloin)" <ubuntu-kernel-bot@canonical.com>
-Date: Fri, 17 Jan 2020 14:31:54 -0500
+From eec36be246de9de688db96506df3c8b3c357a9ec Mon Sep 17 00:00:00 2001
+From: "Kernel Builder (tangerine)" <ubuntu-kernel-bot@canonical.com>
+Date: Wed, 5 Feb 2020 17:38:58 -0500
 Subject: [PATCH 4/5] debian changelog
 
 ---
- debian.master/changelog | 8947 +----------------------------------------------
- 1 file changed, 3 insertions(+), 8944 deletions(-)
+ debian.master/changelog | 9008 +----------------------------------------------
+ 1 file changed, 3 insertions(+), 9005 deletions(-)
 
 diff --git a/debian.master/changelog b/debian.master/changelog
-index 766584a..6702468 100644
+index 32fb10d..73d26d0 100644
 --- a/debian.master/changelog
 +++ b/debian.master/changelog
-@@ -1,8947 +1,6 @@
--linux-5.5 (5.5.0-5.6) focal; urgency=medium
-+linux (5.4.13-050413.202001171431) unstable; urgency=low
+@@ -1,9008 +1,6 @@
+-linux-5.5 (5.5.0-7.8) focal; urgency=medium
++linux (5.4.18-050418.202002051737) unstable; urgency=low
  
+-  * CONFIG_USELIB should be disabled (LP: #1855341)
+-    - [Config] Disable the uselib system call
++  Mainline build at commit: v5.4.18
+ 
+-  * CONFIG_LEGACY_PTYS should be disabled (LP: #1855339)
+-    - [Config] Disable legacy PTY naming
++ -- Mainline Build <kernel@tangerine>  Wed, 05 Feb 2020 17:38:58 -0500
+ 
+-  * CONFIG_IO_STRICT_DEVMEM should be enabled (LP: #1855338)
+-    - [Config] Enforce filtered access to iomem
+-
+-  * CONFIG_DEBUG_NOTIFIERS should be enabled (LP: #1855337)
+-    - [Config] Enable notifier call chain validations
+-
+-  * CONFIG_DEBUG_SG should be enabled (LP: #1855336)
+-    - [Config] Enable scatterlist validation
+-
+-  * CONFIG_DEBUG_CREDENTIALS should be enabled (LP: #1855335)
+-    - [Config] Enable cred sanity checks
+-
+-  * CONFIG_DEBUG_LIST should be enabled (LP: #1855334)
+-    - [Config] Enable linked list manipulation checks
+-
+-  * shiftfs: prevent lower dentries from going negative during unlink
+-    (LP: #1860041)
+-    - SAUCE: shiftfs: prevent lower dentries from going negative during unlink
+-
+-  * [SRU][B/OEM-B/OEM-OSP1/D/E/Unstable] UBUNTU: SAUCE: Use native backlight on
+-    Lenovo E41-25/45 (LP: #1859561)
+-    - SAUCE: ACPI: video: Use native backlight on Lenovo E41-25/45
+-
+-  * USB key cannot be detected by hotplug on Sunix USB Type-A 3.1 Gen 2 card
+-    [1b21:2142]  (LP: #1858988)
+-    - SAUCE: PCI: Avoid ASMedia XHCI USB PME# from D0 defect
+-
+-  * Dell AIO can't adjust brightness (LP: #1858761)
+-    - SAUCE: platform/x86: dell-uart-backlight: add retry for get scalar status
+-
+-  * Miscellaneous Ubuntu changes
+-    - [Config] Fix typo in annotations file
+-    - update dkms package versions
+-
+-  [ Upstream Kernel Changes ]
+-
+-  * Rebase to v5.5
+-
+- -- Andrea Righi <andrea.righi@canonical.com>  Mon, 27 Jan 2020 11:39:38 +0100
+-
+-linux-5.5 (5.5.0-6.7) focal; urgency=medium
+-
+-  * Miscellaneous Ubuntu changes
+-    - [Packaging] Update ubuntu-regression-suite dependency to python2
+-    - [Packaging] Fix ubuntu-regression-suite python dependency for hwe kernel
+-    - update dkms package versions
+-
+-  [ Upstream Kernel Changes ]
+-
+-  * Rebase to v5.5-rc7
+-
+- -- Andrea Righi <andrea.righi@canonical.com>  Mon, 20 Jan 2020 10:16:01 +0100
+-
+-linux-5.5 (5.5.0-5.6) focal; urgency=medium
+-
 -  * Miscellaneous Ubuntu changes
 -    - update dkms package versions
-+  Mainline build at commit: v5.4.13
- 
+-
 -  [ Upstream Kernel Changes ]
-+ -- Mainline Build <kernel@gloin>  Fri, 17 Jan 2020 14:31:53 -0500
- 
+-
 -  * Rebase to v5.5-rc6
 -
 - -- Andrea Righi <andrea.righi@canonical.com>  Mon, 13 Jan 2020 15:50:12 +0100

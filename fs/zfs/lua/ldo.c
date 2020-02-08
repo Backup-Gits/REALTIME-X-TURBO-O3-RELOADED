@@ -46,7 +46,6 @@
 
 #ifdef _KERNEL
 
-#ifdef __linux__
 #if defined(__i386__)
 #define	JMP_BUF_CNT	6
 #elif defined(__x86_64__)
@@ -63,8 +62,6 @@
 #define JMP_BUF_CNT	12
 #elif defined(__s390x__)
 #define JMP_BUF_CNT	18
-#elif defined(__riscv)
-#define JMP_BUF_CNT     64
 #else
 #define	JMP_BUF_CNT	1
 #endif
@@ -87,11 +84,6 @@ int setjmp (label_t *buf) {
 void longjmp (label_t * buf) {
 	for (;;);
 }
-#endif
-#else
-#define LUAI_THROW(L,c)		longjmp((c)->b, 1)
-#define LUAI_TRY(L,c,a)		if (setjmp((c)->b) == 0) { a }
-#define luai_jmpbuf		jmp_buf
 #endif
 
 #else /* _KERNEL */

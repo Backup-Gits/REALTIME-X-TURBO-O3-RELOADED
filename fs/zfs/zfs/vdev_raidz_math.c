@@ -29,7 +29,7 @@
 #include <sys/zfs_debug.h>
 #include <sys/vdev_raidz.h>
 #include <sys/vdev_raidz_impl.h>
-#include <sys/simd.h>
+#include <linux/simd.h>
 
 extern boolean_t raidz_will_scalar_work(void);
 
@@ -627,7 +627,8 @@ vdev_raidz_impl_set(const char *val)
 	return (err);
 }
 
-#if defined(_KERNEL) && defined(__linux__)
+#if defined(_KERNEL)
+#include <linux/mod_compat.h>
 
 static int
 zfs_vdev_raidz_impl_set(const char *val, zfs_kernel_param_t *kp)

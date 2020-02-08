@@ -1,13 +1,13 @@
-From a5bf63a642f3cdda6003030a0c1a8b352e83dc57 Mon Sep 17 00:00:00 2001
-From: "Kernel Builder (gloin)" <ubuntu-kernel-bot@canonical.com>
-Date: Fri, 17 Jan 2020 14:32:50 -0500
+From 992cf9e84b2a9dd38e57bbeb9e8401e2e639321c Mon Sep 17 00:00:00 2001
+From: "Kernel Builder (tangerine)" <ubuntu-kernel-bot@canonical.com>
+Date: Wed, 5 Feb 2020 17:39:51 -0500
 Subject: [PATCH 5/5] configs (based on Ubuntu-5.4.0-8.11)
 
 ---
  debian.master/config/amd64/config.common.amd64     |  16 +-
  debian.master/config/amd64/config.flavour.generic  |   2 -
  .../config/amd64/config.flavour.lowlatency         |   2 -
- debian.master/config/annotations                   |  16 +-
+ debian.master/config/annotations                   |  27 +--
  debian.master/config/arm64/config.common.arm64     |  12 +-
  debian.master/config/armhf/config.common.armhf     |   9 +-
  debian.master/config/config.common.ubuntu          | 249 ++++-----------------
@@ -16,7 +16,7 @@ Subject: [PATCH 5/5] configs (based on Ubuntu-5.4.0-8.11)
  .../config/i386/config.flavour.lowlatency          |   1 -
  debian.master/config/ppc64el/config.common.ppc64el |   8 +-
  debian.master/config/s390x/config.common.s390x     |   8 +-
- 12 files changed, 78 insertions(+), 255 deletions(-)
+ 12 files changed, 83 insertions(+), 261 deletions(-)
 
 diff --git a/debian.master/config/amd64/config.common.amd64 b/debian.master/config/amd64/config.common.amd64
 index 2bbd7db..795d8a1 100644
@@ -118,10 +118,34 @@ index 8d90b9b..42de09f 100644
  # CONFIG_PREEMPT_VOLUNTARY is not set
 -# CONFIG_SND_SOC_SOF_DEVELOPER_SUPPORT is not set
 diff --git a/debian.master/config/annotations b/debian.master/config/annotations
-index a0815ff..1243e8f 100644
+index 6009e8d..1243e8f 100644
 --- a/debian.master/config/annotations
 +++ b/debian.master/config/annotations
-@@ -6407,7 +6407,7 @@ CONFIG_PCIE_QCOM                                policy<{'arm64': 'y', 'armhf': '
+@@ -399,11 +399,11 @@ CONFIG_CRYPTO_DEV_SP_PSP                        policy<{'amd64': 'y'}>
+ CONFIG_CRYPTO_DEV_CCP_DEBUGFS                   policy<{'amd64': 'n', 'arm64': 'n', 'i386': 'n'}>
+ CONFIG_CRYPTO_DEV_MXS_DCP                       policy<{'arm64': 'n', 'armhf-generic': 'n'}>
+ CONFIG_CRYPTO_DEV_QAT_DH895xCC                  policy<{'amd64': 'm', 'i386': 'm'}>
+-CONFIG_CRYPTO_DEV_QAT_C3XXX                     policy<{'amd64': 'm', 'i386': 'm'}>
+-CONFIG_CRYPTO_DEV_QAT_C62X                      policy<{'amd64': 'm', 'i386': 'm'}>
++CONFIG_CRYPTO_DEV_QAT_C3XXX                     policy<{'amd64': 'n', 'i386': 'n'}>
++CONFIG_CRYPTO_DEV_QAT_C62X                      policy<{'amd64': 'n', 'i386': 'n'}>
+ CONFIG_CRYPTO_DEV_QAT_DH895xCCVF                policy<{'amd64': 'm', 'i386': 'm'}>
+-CONFIG_CRYPTO_DEV_QAT_C3XXXVF                   policy<{'amd64': 'm', 'i386': 'm'}>
+-CONFIG_CRYPTO_DEV_QAT_C62XVF                    policy<{'amd64': 'm', 'i386': 'm'}>
++CONFIG_CRYPTO_DEV_QAT_C3XXXVF                   policy<{'amd64': 'n', 'i386': 'n'}>
++CONFIG_CRYPTO_DEV_QAT_C62XVF                    policy<{'amd64': 'n', 'i386': 'n'}>
+ CONFIG_CAVIUM_CPT                               policy<{'arm64': 'm'}>
+ CONFIG_CRYPTO_DEV_NITROX_CNN55XX                policy<{'amd64': 'm', 'arm64': 'm', 'ppc64el': 'm', 's390x': 'n'}>
+ CONFIG_CRYPTO_DEV_CAVIUM_ZIP                    policy<{'arm64': 'm'}>
+@@ -2798,7 +2798,6 @@ CONFIG_VIRTIO_IOMMU                             policy<{'arm64': 'y'}>
+ #
+ CONFIG_IPMMU_VMSA				note<LP:1718734>
+ CONFIG_ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT       mark<ENFORCED> note<LP:1845820>
+-CONFIG_IOMMU_DEBUGFS                            mark<ENFORCED> note<Should not be enabled in production, LP #1861057>
+ 
+ # Menu: Device Drivers >> IOMMU Hardware Support >> Generic IOMMU Pagetable Support
+ CONFIG_IOMMU_IO_PGTABLE_LPAE                    policy<{'arm64': 'y', 'armhf': 'y'}>
+@@ -6408,7 +6407,7 @@ CONFIG_PCIE_QCOM                                policy<{'arm64': 'y', 'armhf': '
  CONFIG_PCIE_ARMADA_8K                           policy<{'arm64': 'y', 'armhf': 'y'}>
  CONFIG_PCIE_KIRIN                               policy<{'arm64': 'y'}>
  CONFIG_PCIE_HISI_STB                            policy<{'arm64': 'y', 'armhf': 'y'}>
@@ -130,7 +154,7 @@ index a0815ff..1243e8f 100644
  CONFIG_PCIE_UNIPHIER                            policy<{'armhf': 'y'}>
  CONFIG_PCIE_AL                                  policy<{'arm64': 'y'}>
  
-@@ -8103,12 +8103,12 @@ CONFIG_SND_SOC_SOF_TOPLEVEL                     policy<{'amd64': 'y', 'arm64': '
+@@ -8104,12 +8103,12 @@ CONFIG_SND_SOC_SOF_TOPLEVEL                     policy<{'amd64': 'y', 'arm64': '
  CONFIG_SND_SOC_SOF_PCI                          policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
  CONFIG_SND_SOC_SOF_ACPI                         policy<{'amd64': 'm', 'arm64': 'm', 'i386': 'm'}>
  CONFIG_SND_SOC_SOF_OF                           policy<{'arm64': 'm', 'armhf': 'm', 'ppc64el': 'm'}>
@@ -145,7 +169,7 @@ index a0815ff..1243e8f 100644
  
  # Menu: Device Drivers >> Sound card support >> Advanced Linux Sound Architecture >> ALSA for SoC audio support >> Sound Open Firmware Support >> SOF debugging features
  CONFIG_SND_SOC_SOF_DEBUG                        policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n'}>
-@@ -8352,10 +8352,8 @@ CONFIG_SND_X86                                  policy<{'amd64': 'y', 'i386': 'y
+@@ -8353,10 +8352,8 @@ CONFIG_SND_X86                                  policy<{'amd64': 'y', 'i386': 'y
  CONFIG_HDMI_LPE_AUDIO                           policy<{'amd64': 'm', 'i386': 'm'}>
  
  # Menu: Device Drivers >> SoundWire support
@@ -157,7 +181,7 @@ index a0815ff..1243e8f 100644
  
  # Menu: Device Drivers >> Staging drivers
  CONFIG_QLGE                                     policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm'}>
-@@ -9200,9 +9198,9 @@ CONFIG_UIO_MF624                                policy<{'amd64': 'm', 'arm64': '
+@@ -9201,9 +9198,9 @@ CONFIG_UIO_MF624                                policy<{'amd64': 'm', 'arm64': '
  CONFIG_UIO_HV_GENERIC                           policy<{'amd64': 'm', 'i386': 'm'}>
  
  # Menu: Device Drivers >> VFIO Non-Privileged userspace driver framework
@@ -169,7 +193,16 @@ index a0815ff..1243e8f 100644
  CONFIG_VFIO_PCI_VGA                             policy<{'amd64': 'y', 'i386': 'y'}>
  CONFIG_VFIO_PCI_IGD                             policy<{'amd64': 'y', 'i386': 'y'}>
  CONFIG_VFIO_MDEV                                policy<{'amd64': 'm', 'arm64': 'm', 'armhf': 'm', 'i386': 'm', 'ppc64el': 'm', 's390x': 'm'}>
-@@ -12363,7 +12361,7 @@ CONFIG_MATH_EMULATION                           policy<{'i386': 'n'}>
+@@ -10627,7 +10624,7 @@ CONFIG_DEBUG_BLOCK_EXT_DEVT                     policy<{'amd64': 'n', 'arm64': '
+ CONFIG_CPU_HOTPLUG_STATE_CONTROL                policy<{'amd64': 'n', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
+ CONFIG_LATENCYTOP                               policy<{'amd64-generic': 'n', 'amd64-lowlatency': 'y', 'arm64': 'n', 'armhf': 'n', 'i386': 'n', 'ppc64el': 'n', 's390x': 'n'}>
+ #
+-CONFIG_LATENCYTOP                               mark<ENFORCED> note<https://lists.ubuntu.com/archives/kernel-team/2014-July/045006.html, LP#1655986>
++CONFIG_LATENCYTOP                               marl<ENFORCED> note<https://lists.ubuntu.com/archives/kernel-team/2014-July/045006.html, LP#1655986>
+ 
+ # Menu: Kernel hacking >> Kernel debugging >> Architecture: arm
+ CONFIG_ARM_PTDUMP_DEBUGFS                       policy<{'armhf': 'n'}>
+@@ -12364,7 +12361,7 @@ CONFIG_MATH_EMULATION                           policy<{'i386': 'n'}>
  CONFIG_CMDLINE_BOOL                             policy<{'amd64': 'n', 'i386': 'n', 'ppc64el': 'n'}>
  CONFIG_HIGHMEM                                  policy<{'armhf': 'y', 'i386': 'y'}>
  CONFIG_FORCE_MAX_ZONEORDER                      policy<{'arm64': '13', 'armhf-generic': '12', 'armhf-generic-lpae': '11', 'ppc64el': '9', 's390x': '9'}>
@@ -336,7 +369,7 @@ index c9bf33e..5a3f45a 100644
  CONFIG_ZIIRAVE_WATCHDOG=m
 +CONFIG_ZLIB_DEFLATE=y
 diff --git a/debian.master/config/config.common.ubuntu b/debian.master/config/config.common.ubuntu
-index 71e03bc..7140580 100644
+index 8a5b291..87d7d73 100644
 --- a/debian.master/config/config.common.ubuntu
 +++ b/debian.master/config/config.common.ubuntu
 @@ -5,6 +5,7 @@ CONFIG_104_QUAD_8=m

@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 Joyent, Inc.
  */
@@ -413,6 +413,7 @@ spa_history_log_nvl(spa_t *spa, nvlist_t *nvl)
 
 	/* spa_history_log_sync will free nvl */
 	return (err);
+
 }
 
 /*
@@ -533,7 +534,7 @@ log_internal(nvlist_t *nvl, const char *operation, spa_t *spa,
 
 	msg = kmem_vasprintf(fmt, adx);
 	fnvlist_add_string(nvl, ZPOOL_HIST_INT_STR, msg);
-	kmem_strfree(msg);
+	strfree(msg);
 
 	fnvlist_add_string(nvl, ZPOOL_HIST_INT_NAME, operation);
 	fnvlist_add_uint64(nvl, ZPOOL_HIST_TXG, tx->tx_txg);

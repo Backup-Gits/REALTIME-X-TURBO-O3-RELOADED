@@ -1,4 +1,4 @@
-src = /var/tmp/portage/sys-fs/zfs-kmod-9999/work/zfs-kmod-9999/module/unicode
+src = /usr/src/zfs-0.8.3/module/unicode
 
 MODULE := zunicode
 

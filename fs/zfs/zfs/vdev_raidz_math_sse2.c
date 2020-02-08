@@ -27,8 +27,7 @@
 #if defined(__x86_64) && defined(HAVE_SSE2)
 
 #include <sys/types.h>
-#include <sys/simd.h>
-#include <sys/debug.h>
+#include <linux/simd_x86.h>
 
 #define	__asm __asm__ __volatile__
 
@@ -126,8 +125,6 @@ typedef struct v {
 		__asm(							\
 		    "movdqa %" VR0(r) ", %" VR1(r));			\
 		break;							\
-	default:							\
-		VERIFY(0);						\
 	}								\
 }
 
@@ -178,8 +175,6 @@ typedef struct v {
 		    "movdqa %%" VR0(r)", 0x00(%[DST])\n"		\
 		    : : [DST] "r" (dst));				\
 		break;							\
-	default:							\
-		VERIFY(0);						\
 	}								\
 }
 
@@ -513,8 +508,6 @@ gf_x2_mul_fns[256] = {
 		gf_x1_mul_fns[c]();					\
 		COPY(_mul_x1_acc, r);					\
 		break;							\
-	default:							\
-		VERIFY(0);						\
 	}								\
 }
 

@@ -417,7 +417,7 @@ pool_namecheck(const char *pool, namecheck_err_t *why, char *what)
 	return (0);
 }
 
-EXPORT_SYMBOL(entity_namecheck);
+#if defined(_KERNEL)
 EXPORT_SYMBOL(pool_namecheck);
 EXPORT_SYMBOL(dataset_namecheck);
 EXPORT_SYMBOL(zfs_component_namecheck);
@@ -425,5 +425,6 @@ EXPORT_SYMBOL(dataset_nestcheck);
 EXPORT_SYMBOL(get_dataset_depth);
 EXPORT_SYMBOL(zfs_max_dataset_nesting);
 
-ZFS_MODULE_PARAM(zfs, zfs_, max_dataset_nesting, INT, ZMOD_RW,
-	"Limit to the amount of nesting a path can have. Defaults to 50.");
+module_param(zfs_max_dataset_nesting, int, 0644);
+MODULE_PARM_DESC(zfs_max_dataset_nesting, "Maximum depth of nested datasets");
+#endif

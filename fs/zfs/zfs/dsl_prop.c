@@ -150,8 +150,8 @@ dsl_prop_get_dd(dsl_dir_t *dd, const char *propname,
 	if (err == ENOENT)
 		err = dodefault(prop, intsz, numints, buf);
 
-	kmem_strfree(inheritstr);
-	kmem_strfree(recvdstr);
+	strfree(inheritstr);
+	strfree(recvdstr);
 
 	return (err);
 }
@@ -190,7 +190,7 @@ dsl_prop_get_ds(dsl_dataset_t *ds, const char *propname,
 			char *inheritstr = kmem_asprintf("%s%s", propname,
 			    ZPROP_INHERIT_SUFFIX);
 			err = zap_contains(mos, zapobj, inheritstr);
-			kmem_strfree(inheritstr);
+			strfree(inheritstr);
 			if (err != 0 && err != ENOENT)
 				return (err);
 		}
@@ -201,7 +201,7 @@ dsl_prop_get_ds(dsl_dataset_t *ds, const char *propname,
 			    ZPROP_RECVD_SUFFIX);
 			err = zap_lookup(mos, zapobj, recvdstr,
 			    intsz, numints, buf);
-			kmem_strfree(recvdstr);
+			strfree(recvdstr);
 			if (err != ENOENT) {
 				if (setpoint != NULL && err == 0)
 					(void) strcpy(setpoint,
@@ -283,7 +283,7 @@ dsl_prop_register(dsl_dataset_t *ds, const char *propname,
 	dsl_prop_record_t *pr;
 	dsl_prop_cb_record_t *cbr;
 	int err;
-	dsl_pool_t *dp __maybe_unused = dd->dd_pool;
+	ASSERTV(dsl_pool_t *dp = dd->dd_pool);
 
 	ASSERT(dsl_pool_config_held(dp));
 
@@ -424,7 +424,7 @@ dsl_prop_predict(dsl_dir_t *dd, const char *propname,
 		panic("unexpected property source: %d", source);
 	}
 
-	kmem_strfree(recvdstr);
+	strfree(recvdstr);
 
 	if (err == ENOENT)
 		return (0);
@@ -757,8 +757,8 @@ dsl_prop_set_sync_impl(dsl_dataset_t *ds, const char *propname,
 		cmn_err(CE_PANIC, "unexpected property source: %d", source);
 	}
 
-	kmem_strfree(inheritstr);
-	kmem_strfree(recvdstr);
+	strfree(inheritstr);
+	strfree(recvdstr);
 
 	/*
 	 * If we are left with an empty snap zap we can destroy it.
@@ -1037,7 +1037,7 @@ dsl_prop_get_all_impl(objset_t *mos, uint64_t propobj,
 				valstr = kmem_asprintf("%s%s", propname,
 				    ZPROP_INHERIT_SUFFIX);
 				err = zap_contains(mos, propobj, valstr);
-				kmem_strfree(valstr);
+				strfree(valstr);
 				if (err == 0)
 					continue;
 				if (err != ENOENT)

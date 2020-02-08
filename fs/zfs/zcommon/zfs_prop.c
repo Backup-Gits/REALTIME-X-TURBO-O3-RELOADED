@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2015 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright 2016, Joyent, Inc.
  */
@@ -81,10 +81,7 @@ zfs_prop_init(void)
 		{ "noparity",   ZIO_CHECKSUM_NOPARITY },
 		{ "sha512",	ZIO_CHECKSUM_SHA512 },
 		{ "skein",	ZIO_CHECKSUM_SKEIN },
-#if !defined(__FreeBSD__)
-
 		{ "edonr",	ZIO_CHECKSUM_EDONR },
-#endif
 		{ NULL }
 	};
 
@@ -101,11 +98,8 @@ zfs_prop_init(void)
 		{ "skein",	ZIO_CHECKSUM_SKEIN },
 		{ "skein,verify",
 				ZIO_CHECKSUM_SKEIN | ZIO_CHECKSUM_VERIFY },
-#if !defined(__FreeBSD__)
-
 		{ "edonr,verify",
 				ZIO_CHECKSUM_EDONR | ZIO_CHECKSUM_VERIFY },
-#endif
 		{ NULL }
 	};
 
@@ -303,22 +297,12 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_CHECKSUM, "checksum",
 	    ZIO_CHECKSUM_DEFAULT, PROP_INHERIT, ZFS_TYPE_FILESYSTEM |
 	    ZFS_TYPE_VOLUME,
-#if !defined(__FreeBSD__)
-	    "on | off | fletcher2 | fletcher4 | sha256 | sha512 | skein"
-	    " | edonr",
-#else
-	    "on | off | fletcher2 | fletcher4 | sha256 | sha512 | skein",
-#endif
-	    "CHECKSUM", checksum_table);
+	    "on | off | fletcher2 | fletcher4 | sha256 | sha512 | "
+	    "skein | edonr", "CHECKSUM", checksum_table);
 	zprop_register_index(ZFS_PROP_DEDUP, "dedup", ZIO_CHECKSUM_OFF,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
 	    "on | off | verify | sha256[,verify], sha512[,verify], "
-#if !defined(__FreeBSD__)
-	    "skein[,verify], edonr,verify",
-#else
-	    "skein[,verify]",
-#endif
-	    "DEDUP", dedup_table);
+	    "skein[,verify], edonr,verify", "DEDUP", dedup_table);
 	zprop_register_index(ZFS_PROP_COMPRESSION, "compression",
 	    ZIO_COMPRESS_DEFAULT, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
@@ -379,13 +363,8 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_READONLY, "readonly", 0, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "on | off", "RDONLY",
 	    boolean_table);
-#ifdef __FreeBSD__
-	zprop_register_index(ZFS_PROP_ZONED, "jailed", 0, PROP_INHERIT,
-	    ZFS_TYPE_FILESYSTEM, "on | off", "JAILED", boolean_table);
-#else
 	zprop_register_index(ZFS_PROP_ZONED, "zoned", 0, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM, "on | off", "ZONED", boolean_table);
-#endif
 	zprop_register_index(ZFS_PROP_VSCAN, "vscan", 0, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM, "on | off", "VSCAN", boolean_table);
 	zprop_register_index(ZFS_PROP_NBMAND, "nbmand", 0, PROP_INHERIT,
@@ -479,10 +458,6 @@ zfs_prop_init(void)
 	zprop_register_string(ZFS_PROP_KEYLOCATION, "keylocation",
 	    "none", PROP_DEFAULT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
 	    "prompt | <file URI>", "KEYLOCATION");
-	zprop_register_string(ZFS_PROP_REDACT_SNAPS,
-	    "redact_snaps", NULL, PROP_READONLY,
-	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<snapshot>[,...]",
-	    "RSNAPS");
 
 	/* readonly number properties */
 	zprop_register_number(ZFS_PROP_USED, "used", 0, PROP_READONLY,
@@ -490,10 +465,9 @@ zfs_prop_init(void)
 	zprop_register_number(ZFS_PROP_AVAILABLE, "available", 0, PROP_READONLY,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "<size>", "AVAIL");
 	zprop_register_number(ZFS_PROP_REFERENCED, "referenced", 0,
-	    PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<size>",
-	    "REFER");
+	    PROP_READONLY, ZFS_TYPE_DATASET, "<size>", "REFER");
 	zprop_register_number(ZFS_PROP_COMPRESSRATIO, "compressratio", 0,
-	    PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK,
+	    PROP_READONLY, ZFS_TYPE_DATASET,
 	    "<1.00x or higher if compressed>", "RATIO");
 	zprop_register_number(ZFS_PROP_REFRATIO, "refcompressratio", 0,
 	    PROP_READONLY, ZFS_TYPE_DATASET,
@@ -521,8 +495,7 @@ zfs_prop_init(void)
 	    PROP_READONLY, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "<size>",
 	    "LUSED");
 	zprop_register_number(ZFS_PROP_LOGICALREFERENCED, "logicalreferenced",
-	    0, PROP_READONLY, ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<size>",
-	    "LREFER");
+	    0, PROP_READONLY, ZFS_TYPE_DATASET, "<size>", "LREFER");
 	zprop_register_number(ZFS_PROP_FILESYSTEM_COUNT, "filesystem_count",
 	    UINT64_MAX, PROP_READONLY, ZFS_TYPE_FILESYSTEM,
 	    "<count>", "FSCOUNT");
@@ -533,6 +506,8 @@ zfs_prop_init(void)
 	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<uint64>", "GUID");
 	zprop_register_number(ZFS_PROP_CREATETXG, "createtxg", 0, PROP_READONLY,
 	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<uint64>", "CREATETXG");
+	zprop_register_hidden(ZFS_PROP_REMAPTXG, "remaptxg", PROP_TYPE_NUMBER,
+	    PROP_READONLY, ZFS_TYPE_DATASET, "REMAPTXG");
 	zprop_register_number(ZFS_PROP_PBKDF2_ITERS, "pbkdf2iters",
 	    0, PROP_ONETIME_DEFAULT, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME,
 	    "<iters>", "PBKDF2ITERS");
@@ -594,19 +569,13 @@ zfs_prop_init(void)
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "PBKDF2SALT");
 	zprop_register_hidden(ZFS_PROP_KEY_GUID, "keyguid", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_DATASET, "KEYGUID");
-	zprop_register_hidden(ZFS_PROP_REDACTED, "redacted", PROP_TYPE_NUMBER,
-	    PROP_READONLY, ZFS_TYPE_DATASET, "REDACTED");
 
 	/*
-	 * Properties that are obsolete and not used.  These are retained so
-	 * that we don't have to change the values of the zfs_prop_t enum, or
-	 * have NULL pointers in the zfs_prop_table[].
+	 * Property to be removed once libbe is integrated
 	 */
 	zprop_register_hidden(ZFS_PROP_PRIVATE, "priv_prop",
 	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_FILESYSTEM,
 	    "PRIV_PROP");
-	zprop_register_hidden(ZFS_PROP_REMAPTXG, "remaptxg", PROP_TYPE_NUMBER,
-	    PROP_READONLY, ZFS_TYPE_DATASET, "REMAPTXG");
 
 	/* oddball properties */
 	zprop_register_impl(ZFS_PROP_CREATION, "creation", PROP_TYPE_NUMBER, 0,
@@ -699,10 +668,8 @@ zfs_prop_userquota(const char *name)
 boolean_t
 zfs_prop_written(const char *name)
 {
-	static const char *prop_prefix = "written@";
-	static const char *book_prefix = "written#";
-	return (strncmp(name, prop_prefix, strlen(prop_prefix)) == 0 ||
-	    strncmp(name, book_prefix, strlen(book_prefix)) == 0);
+	static const char *prefix = "written@";
+	return (strncmp(name, prefix, strlen(prefix)) == 0);
 }
 
 /*
@@ -887,7 +854,7 @@ zfs_prop_align_right(zfs_prop_t prop)
 
 #if defined(_KERNEL)
 
-#include <sys/simd.h>
+#include <linux/simd.h>
 
 #if defined(HAVE_KERNEL_FPU_INTERNAL)
 union fpregs_state **zfs_kfpu_fpregs;
@@ -916,12 +883,10 @@ zcommon_fini(void)
 module_init(zcommon_init);
 module_exit(zcommon_fini);
 
-#endif
-
-ZFS_MODULE_DESCRIPTION("Generic ZFS support");
-ZFS_MODULE_AUTHOR(ZFS_META_AUTHOR);
-ZFS_MODULE_LICENSE(ZFS_META_LICENSE);
-ZFS_MODULE_VERSION(ZFS_META_VERSION "-" ZFS_META_RELEASE);
+MODULE_DESCRIPTION("Generic ZFS support");
+MODULE_AUTHOR(ZFS_META_AUTHOR);
+MODULE_LICENSE(ZFS_META_LICENSE);
+MODULE_VERSION(ZFS_META_VERSION "-" ZFS_META_RELEASE);
 
 /* zfs dataset property functions */
 EXPORT_SYMBOL(zfs_userquota_prop_prefixes);
@@ -947,3 +912,5 @@ EXPORT_SYMBOL(zfs_prop_index_to_string);
 EXPORT_SYMBOL(zfs_prop_string_to_index);
 EXPORT_SYMBOL(zfs_prop_valid_for_type);
 EXPORT_SYMBOL(zfs_prop_written);
+
+#endif

@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2019 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2014 Spectra Logic Corporation, All rights reserved.
  */
 
@@ -37,7 +37,7 @@
 #include <sys/zio.h>
 #include <sys/dmu_zfetch.h>
 #include <sys/range_tree.h>
-#include <sys/trace_zfs.h>
+#include <sys/trace_dnode.h>
 #include <sys/zfs_project.h>
 
 dnode_stats_t dnode_stats = {
@@ -74,7 +74,7 @@ dnode_stats_t dnode_stats = {
 static kstat_t *dnode_ksp;
 static kmem_cache_t *dnode_cache;
 
-static dnode_phys_t dnode_phys_zero __maybe_unused;
+ASSERTV(static dnode_phys_t dnode_phys_zero);
 
 int zfs_default_bs = SPA_MINBLOCKSHIFT;
 int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
@@ -89,11 +89,11 @@ dbuf_compare(const void *x1, const void *x2)
 	const dmu_buf_impl_t *d1 = x1;
 	const dmu_buf_impl_t *d2 = x2;
 
-	int cmp = TREE_CMP(d1->db_level, d2->db_level);
+	int cmp = AVL_CMP(d1->db_level, d2->db_level);
 	if (likely(cmp))
 		return (cmp);
 
-	cmp = TREE_CMP(d1->db_blkid, d2->db_blkid);
+	cmp = AVL_CMP(d1->db_blkid, d2->db_blkid);
 	if (likely(cmp))
 		return (cmp);
 
@@ -105,7 +105,7 @@ dbuf_compare(const void *x1, const void *x2)
 		return (1);
 	}
 
-	return (TREE_PCMP(d1, d2));
+	return (AVL_PCMP(d1, d2));
 }
 
 /* ARGSUSED */
@@ -446,6 +446,7 @@ dnode_create(objset_t *os, dnode_phys_t *dnp, dmu_buf_impl_t *db,
 	dnode_t *dn;
 
 	dn = kmem_cache_alloc(dnode_cache, KM_SLEEP);
+	ASSERT(!POINTER_IS_VALID(dn->dn_objset));
 	dn->dn_moved = 0;
 
 	/*
@@ -758,7 +759,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ASSERT(!RW_LOCK_HELD(&odn->dn_struct_rwlock));
 	ASSERT(MUTEX_NOT_HELD(&odn->dn_mtx));
 	ASSERT(MUTEX_NOT_HELD(&odn->dn_dbufs_mtx));
-	ASSERT(!MUTEX_HELD(&odn->dn_zfetch.zf_lock));
+	ASSERT(!RW_LOCK_HELD(&odn->dn_zfetch.zf_rwlock));
 
 	/* Copy fields. */
 	ndn->dn_objset = odn->dn_objset;
@@ -1345,6 +1346,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag, int slots,
 	}
 
 	blk = dbuf_whichblock(mdn, 0, object * sizeof (dnode_phys_t));
+
 	db = dbuf_hold(mdn, blk, FTAG);
 	if (drop_struct_lock)
 		rw_exit(&mdn->dn_struct_rwlock);
@@ -1774,11 +1776,10 @@ dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx)
 
 	/* resize the old block */
 	err = dbuf_hold_impl(dn, 0, 0, TRUE, FALSE, FTAG, &db);
-	if (err == 0) {
+	if (err == 0)
 		dbuf_new_size(db, size, tx);
-	} else if (err != ENOENT) {
+	else if (err != ENOENT)
 		goto fail;
-	}
 
 	dnode_setdblksz(dn, size);
 	dnode_setdirty(dn, tx);
@@ -2016,6 +2017,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 	int trunc = FALSE;
 	int epbs;
 
+	rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 	blksz = dn->dn_datablksz;
 	blkshift = dn->dn_datablkshift;
 	epbs = dn->dn_indblkshift - SPA_BLKPTRSHIFT;
@@ -2032,7 +2034,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 		head = P2NPHASE(off, blksz);
 		blkoff = P2PHASE(off, blksz);
 		if ((off >> blkshift) > dn->dn_maxblkid)
-			return;
+			goto out;
 	} else {
 		ASSERT(dn->dn_maxblkid == 0);
 		if (off == 0 && len >= blksz) {
@@ -2041,15 +2043,12 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 			 */
 			blkid = 0;
 			nblks = 1;
-			if (dn->dn_nlevels > 1) {
-				rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
+			if (dn->dn_nlevels > 1)
 				dnode_dirty_l1(dn, 0, tx);
-				rw_exit(&dn->dn_struct_rwlock);
-			}
 			goto done;
 		} else if (off >= blksz) {
 			/* Freeing past end-of-data */
-			return;
+			goto out;
 		} else {
 			/* Freeing part of the block. */
 			head = blksz - off;
@@ -2059,26 +2058,19 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 	}
 	/* zero out any partial block data at the start of the range */
 	if (head) {
-		int res;
 		ASSERT3U(blkoff + head, ==, blksz);
 		if (len < head)
 			head = len;
-		rw_enter(&dn->dn_struct_rwlock, RW_READER);
-		res = dbuf_hold_impl(dn, 0, dbuf_whichblock(dn, 0, off),
-		    TRUE, FALSE, FTAG, &db);
-		rw_exit(&dn->dn_struct_rwlock);
-		if (res == 0) {
+		if (dbuf_hold_impl(dn, 0, dbuf_whichblock(dn, 0, off),
+		    TRUE, FALSE, FTAG, &db) == 0) {
 			caddr_t data;
-			boolean_t dirty;
 
-			db_lock_type_t dblt = dmu_buf_lock_parent(db, RW_READER,
-			    FTAG);
 			/* don't dirty if it isn't on disk and isn't dirty */
-			dirty = db->db_last_dirty ||
-			    (db->db_blkptr && !BP_IS_HOLE(db->db_blkptr));
-			dmu_buf_unlock_parent(db, dblt, FTAG);
-			if (dirty) {
+			if (db->db_last_dirty ||
+			    (db->db_blkptr && !BP_IS_HOLE(db->db_blkptr))) {
+				rw_exit(&dn->dn_struct_rwlock);
 				dmu_buf_will_dirty(&db->db, tx);
+				rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 				data = db->db.db_data;
 				bzero(data + blkoff, head);
 			}
@@ -2090,11 +2082,11 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 
 	/* If the range was less than one block, we're done */
 	if (len == 0)
-		return;
+		goto out;
 
 	/* If the remaining range is past end of file, we're done */
 	if ((off >> blkshift) > dn->dn_maxblkid)
-		return;
+		goto out;
 
 	ASSERT(ISP2(blksz));
 	if (trunc)
@@ -2105,23 +2097,16 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 	ASSERT0(P2PHASE(off, blksz));
 	/* zero out any partial block data at the end of the range */
 	if (tail) {
-		int res;
 		if (len < tail)
 			tail = len;
-		rw_enter(&dn->dn_struct_rwlock, RW_READER);
-		res = dbuf_hold_impl(dn, 0, dbuf_whichblock(dn, 0, off+len),
-		    TRUE, FALSE, FTAG, &db);
-		rw_exit(&dn->dn_struct_rwlock);
-		if (res == 0) {
-			boolean_t dirty;
+		if (dbuf_hold_impl(dn, 0, dbuf_whichblock(dn, 0, off+len),
+		    TRUE, FALSE, FTAG, &db) == 0) {
 			/* don't dirty if not on disk and not dirty */
-			db_lock_type_t type = dmu_buf_lock_parent(db, RW_READER,
-			    FTAG);
-			dirty = db->db_last_dirty ||
-			    (db->db_blkptr && !BP_IS_HOLE(db->db_blkptr));
-			dmu_buf_unlock_parent(db, type, FTAG);
-			if (dirty) {
+			if (db->db_last_dirty ||
+			    (db->db_blkptr && !BP_IS_HOLE(db->db_blkptr))) {
+				rw_exit(&dn->dn_struct_rwlock);
 				dmu_buf_will_dirty(&db->db, tx);
+				rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 				bzero(db->db.db_data, tail);
 			}
 			dbuf_rele(db, FTAG);
@@ -2131,7 +2116,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 
 	/* If the range did not include a full block, we are done */
 	if (len == 0)
-		return;
+		goto out;
 
 	ASSERT(IS_P2ALIGNED(off, blksz));
 	ASSERT(trunc || IS_P2ALIGNED(len, blksz));
@@ -2161,7 +2146,6 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 	 *    amount of space if we copy the freed BPs into deadlists.
 	 */
 	if (dn->dn_nlevels > 1) {
-		rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 		uint64_t first, last;
 
 		first = blkid >> epbs;
@@ -2206,7 +2190,6 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 
 			dnode_dirty_l1(dn, i, tx);
 		}
-		rw_exit(&dn->dn_struct_rwlock);
 	}
 
 done:
@@ -2218,8 +2201,7 @@ done:
 	{
 	int txgoff = tx->tx_txg & TXG_MASK;
 	if (dn->dn_free_ranges[txgoff] == NULL) {
-		dn->dn_free_ranges[txgoff] = range_tree_create(NULL,
-		    RANGE_SEG64, NULL, 0, 0);
+		dn->dn_free_ranges[txgoff] = range_tree_create(NULL, NULL);
 	}
 	range_tree_clear(dn->dn_free_ranges[txgoff], blkid, nblks);
 	range_tree_add(dn->dn_free_ranges[txgoff], blkid, nblks);
@@ -2230,6 +2212,9 @@ done:
 
 	dbuf_free_range(dn, blkid, blkid + nblks - 1, tx);
 	dnode_setdirty(dn, tx);
+out:
+
+	rw_exit(&dn->dn_struct_rwlock);
 }
 
 static boolean_t
@@ -2338,8 +2323,6 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 	boolean_t hole;
 	int i, inc, error, span;
 
-	ASSERT(RW_LOCK_HELD(&dn->dn_struct_rwlock));
-
 	hole = ((flags & DNODE_FIND_HOLE) != 0);
 	inc = (flags & DNODE_FIND_BACKWARDS) ? -1 : 1;
 	ASSERT(txg == 0 || !hole);
@@ -2372,8 +2355,8 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 			return (error);
 		}
 		data = db->db.db_data;
-		rw_enter(&db->db_rwlock, RW_READER);
 	}
+
 
 	if (db != NULL && txg != 0 && (db->db_blkptr == NULL ||
 	    db->db_blkptr->blk_birth <= txg ||
@@ -2447,10 +2430,8 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 			error = SET_ERROR(ESRCH);
 	}
 
-	if (db != NULL) {
-		rw_exit(&db->db_rwlock);
+	if (db)
 		dbuf_rele(db, FTAG);
-	}
 
 	return (error);
 }

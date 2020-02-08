@@ -103,7 +103,6 @@
 #include <sys/debug.h>
 #include <sys/avl.h>
 #include <sys/cmn_err.h>
-#include <sys/mod.h>
 
 /*
  * Small arrays to translate between balance (or diff) values and child indices.
@@ -994,6 +993,7 @@ done:
 }
 
 #if defined(_KERNEL)
+#include <linux/module.h>
 
 static int __init
 avl_init(void)
@@ -1008,12 +1008,11 @@ avl_fini(void)
 
 module_init(avl_init);
 module_exit(avl_fini);
-#endif
 
-ZFS_MODULE_DESCRIPTION("Generic AVL tree implementation");
-ZFS_MODULE_AUTHOR(ZFS_META_AUTHOR);
-ZFS_MODULE_LICENSE(ZFS_META_LICENSE);
-ZFS_MODULE_VERSION(ZFS_META_VERSION "-" ZFS_META_RELEASE);
+MODULE_DESCRIPTION("Generic AVL tree implementation");
+MODULE_AUTHOR(ZFS_META_AUTHOR);
+MODULE_LICENSE(ZFS_META_LICENSE);
+MODULE_VERSION(ZFS_META_VERSION "-" ZFS_META_RELEASE);
 
 EXPORT_SYMBOL(avl_create);
 EXPORT_SYMBOL(avl_find);
@@ -1030,3 +1029,4 @@ EXPORT_SYMBOL(avl_remove);
 EXPORT_SYMBOL(avl_numnodes);
 EXPORT_SYMBOL(avl_destroy_nodes);
 EXPORT_SYMBOL(avl_destroy);
+#endif
