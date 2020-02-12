@@ -1321,6 +1321,7 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags,
 		if (err != 0) {
 			DB_DNODE_EXIT(db);
 			mutex_exit(&db->db_mtx);
+			dmu_buf_unlock_parent(db, dblt, tag);
 			return (err);
 		}
 
@@ -1390,6 +1391,7 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags,
 		    SPA_FEATURE_REDACTED_DATASETS));
 		DB_DNODE_EXIT(db);
 		mutex_exit(&db->db_mtx);
+		dmu_buf_unlock_parent(db, dblt, tag);
 		return (SET_ERROR(EIO));
 	}
 
@@ -1414,8 +1416,8 @@ dbuf_read_impl(dmu_buf_impl_t *db, zio_t *zio, uint32_t flags,
 	err = dbuf_read_verify_dnode_crypt(db, flags);
 	if (err != 0) {
 		DB_DNODE_EXIT(db);
-		dmu_buf_unlock_parent(db, dblt, tag);
 		mutex_exit(&db->db_mtx);
+		dmu_buf_unlock_parent(db, dblt, tag);
 		return (err);
 	}
 
@@ -1735,6 +1737,7 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 	dmu_buf_impl_t *db, *db_next;
 	uint64_t txg = tx->tx_txg;
 	avl_index_t where;
+	dbuf_dirty_record_t *dr;
 
 	if (end_blkid > dn->dn_maxblkid &&
 	    !(start_blkid == DMU_SPILL_BLKID || end_blkid == DMU_SPILL_BLKID))
@@ -1788,10 +1791,8 @@ dbuf_free_range(dnode_t *dn, uint64_t start_blkid, uint64_t end_blkid,
 		}
 		/* The dbuf is referenced */
 
-		if (!list_is_empty(&db->db_dirty_records)) {
-			dbuf_dirty_record_t *dr;
-
-			dr = list_head(&db->db_dirty_records);
+		dr = list_head(&db->db_dirty_records);
+		if (dr != NULL) {
 			if (dr->dr_txg == txg) {
 				/*
 				 * This buffer is "in-use", re-adjust the file
@@ -1865,6 +1866,8 @@ dbuf_new_size(dmu_buf_impl_t *db, int size, dmu_tx_t *tx)
 	db->db.db_size = size;
 
 	dr = list_head(&db->db_dirty_records);
+	/* dirty record added by dmu_buf_will_dirty() */
+	VERIFY(dr != NULL);
 	if (db->db_level == 0)
 		dr->dt.dl.dr_data = buf;
 	ASSERT3U(dr->dr_txg, ==, tx->tx_txg);

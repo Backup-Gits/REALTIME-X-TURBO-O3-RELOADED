@@ -62,15 +62,15 @@ modules_install-Linux:
 	$(MAKE) -C /usr/src/linux M=`pwd` modules_install \
 		INSTALL_MOD_PATH=$(DESTDIR)$(INSTALL_MOD_PATH) \
 		INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) \
-		KERNELRELEASE=5.4.18-rt-jsX-ge38308b8b-dirty
+		KERNELRELEASE=5.4.19-rt-jsX+
 	@# Remove extraneous build products when packaging
-	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.18-rt-jsX-ge38308b8b-dirty; \
+	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.19-rt-jsX+; \
 	if [ -n "$(DESTDIR)" ]; then \
 		find $$kmoddir -name 'modules.*' | xargs $(RM); \
 	fi
-	sysmap=$(DESTDIR)$(INSTALL_MOD_PATH)/boot/System.map-5.4.18-rt-jsX-ge38308b8b-dirty; \
+	sysmap=$(DESTDIR)$(INSTALL_MOD_PATH)/boot/System.map-5.4.19-rt-jsX+; \
 	if [ -f $$sysmap ]; then \
-		depmod -ae -F $$sysmap 5.4.18-rt-jsX-ge38308b8b-dirty; \
+		depmod -ae -F $$sysmap 5.4.19-rt-jsX+; \
 	fi
 
 CTAGS: ctags
@@ -104,7 +104,7 @@ modules_install: modules_install-Linux
 
 modules_uninstall-Linux:
 	@# Uninstall the kernel modules
-	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.18-rt-jsX-ge38308b8b-dirty
+	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.4.19-rt-jsX+
 	list='$(obj-m)'; for objdir in $$list; do \
 		$(RM) -R $$kmoddir/$(INSTALL_MOD_DIR)/$$objdir; \
 	done

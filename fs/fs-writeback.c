@@ -2080,7 +2080,7 @@ void wb_workfn(struct work_struct *work)
 						struct bdi_writeback, dwork);
 	long pages_written;
 
-	set_worker_desc("flush-%s", dev_name(wb->bdi->dev));
+    set_worker_desc("flush-%s", bdi_dev_name(wb->bdi));
 	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
 
 	if (likely(!current_is_workqueue_rescuer() ||

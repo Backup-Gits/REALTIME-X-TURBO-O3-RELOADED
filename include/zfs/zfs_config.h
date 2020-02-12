@@ -342,6 +342,9 @@
 /* Define to 1 if you have the `mlockall' function. */
 /* #undef HAVE_MLOCKALL */
 
+/* Define if host toolchain supports MOVBE */
+#define HAVE_MOVBE 1
+
 /* new_sync_read()/new_sync_write() are available */
 /* #undef HAVE_NEW_SYNC_READ */
 
@@ -643,7 +646,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-0.8.0-579_gfa3922df"
+#define ZFS_META_ALIAS "zfs-0.8.0-588_g948f0c44"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS on Linux"
@@ -673,7 +676,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "579_gfa3922df"
+#define ZFS_META_RELEASE "588_g948f0c44"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "0.8.0"
