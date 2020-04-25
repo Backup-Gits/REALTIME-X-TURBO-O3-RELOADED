@@ -1,6 +1,6 @@
 # Changelog : >> 
 
-## * Rebased Kernel Sources Base To 5.6.6. 
+## * Rebased Kernel Sources Base To 5.6.7. 
 ## * Realtime Patch for Kernel 5.6.4 + Fixes. 
 ## * Zram Uses Btree Instead Of Zpool By Default. 
 ## * Injected Last Commit Of OPENZFS Inside The Kernel To Be Able To Compile Built-IN. 
