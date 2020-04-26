@@ -1,3 +1,8 @@
+## * Experimental Branch Based on linux-lucjan Sources Mods Patches.
+## * + New FSGSBASE Intel + More Intel Dev's Optimizations 
+## * + Turbosched-v5 Openzfs Realtime-Full-RT zstd-linux-image-efi-stub zstd-modules ZFS-FPU-FIX
+## * + zswap-BTREE  
+
 # Changelog : >> 
 
 ## * Rebased Kernel Sources Base To 5.6.7. 
@@ -22,10 +27,6 @@
 
 
 
-## * Experimental Branch Based on linux-lucjan Sources Mods Patches.
-## * + New FSGBASE Intel + More Intel Dev's Optimizations 
-## * + Turbosched-v5 Openzfs Realtime-Full-RT zstd-linux-image-efi-stub zstd-modules 
-## * + zswap-BTREE  
 
 ## * JavaShin-X Fixes And More. 
 
