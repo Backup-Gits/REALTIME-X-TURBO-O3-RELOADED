@@ -66,12 +66,10 @@ struct task_struct init_task
 	.stack		= init_stack,
 	.usage		= REFCOUNT_INIT(2),
 	.flags		= PF_KTHREAD,
-#ifdef CONFIG_SCHED_MUQSS
-	.prio		= NORMAL_PRIO,
-	.static_prio	= MAX_PRIO - 20,
-	.normal_prio	= NORMAL_PRIO,
-	.deadline	= 0,
-	.time_slice	= 1000000,
+#ifdef CONFIG_SCHED_BMQ
+	.prio		= DEFAULT_PRIO + MAX_PRIORITY_ADJ,
+	.static_prio	= DEFAULT_PRIO,
+	.normal_prio	= DEFAULT_PRIO + MAX_PRIORITY_ADJ,
 #else
 	.prio		= MAX_PRIO - 20,
 	.static_prio	= MAX_PRIO - 20,
@@ -90,7 +88,12 @@ struct task_struct init_task
 	.restart_block	= {
 		.fn = do_no_restart_syscall,
 	},
-#ifndef CONFIG_SCHED_MUQSS
+#ifdef CONFIG_SCHED_BMQ
+	.boost_prio	= 0,
+	.bmq_idx	= 15,
+	.bmq_node	= LIST_HEAD_INIT(init_task.bmq_node),
+	.time_slice	= HZ,
+#else
 	.se		= {
 		.group_node 	= LIST_HEAD_INIT(init_task.se.group_node),
 	},

@@ -817,6 +817,7 @@ static void collect_posix_cputimers(struct posix_cputimers *pct, u64 *samples,
 	}
 }
 
+#ifndef CONFIG_SCHED_BMQ
 static inline void check_dl_overrun(struct task_struct *tsk)
 {
 	if (tsk->dl.dl_overrun) {
@@ -824,6 +825,7 @@ static inline void check_dl_overrun(struct task_struct *tsk)
 		__group_send_sig_info(SIGXCPU, SEND_SIG_PRIV, tsk);
 	}
 }
+#endif
 
 static bool check_rlimit(struct task_struct *tsk, u64 time, u64 limit,
 			 int signo, bool rt, bool hard)
@@ -852,8 +854,10 @@ static void check_thread_timers(struct task_struct *tsk,
 	u64 samples[CPUCLOCK_MAX];
 	unsigned long soft;
 
+#ifndef CONFIG_SCHED_BMQ
 	if (dl_task(tsk))
 		check_dl_overrun(tsk);
+#endif
 
 	if (expiry_cache_is_inactive(pct))
 		return;
@@ -1121,8 +1125,10 @@ static inline bool fastpath_timer_check(struct task_struct *tsk)
 			return true;
 	}
 
+#ifndef CONFIG_SCHED_BMQ
 	if (dl_task(tsk) && tsk->dl.dl_overrun)
 		return true;
+#endif
 
 	return false;
 }

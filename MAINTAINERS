@@ -3087,6 +3087,13 @@ S:	Maintained
 F:	block/bfq-*
 F:	Documentation/block/bfq-iosched.rst
 
+BFQ-dev I/O SCHEDULER
+M:	Piotr Gorski <lucjan.lucjanov@gmail.com>
+T:	git git://github.com/sirlucjan/bfq-mq-lucjan.git
+S:	Maintained
+F:	block/bfq-*
+F:	Documentation/block/bfq-iosched.rst
+
 BFS FILE SYSTEM
 M:	"Tigran A. Aivazian" <aivazian.tigran@gmail.com>
 S:	Maintained

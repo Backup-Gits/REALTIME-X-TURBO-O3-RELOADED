@@ -58,7 +58,7 @@ const_debug unsigned int sysctl_sched_features =
  * Limited because this is done with IRQs disabled.
  */
 #ifdef CONFIG_PREEMPT_RT
-const_debug unsigned int sysctl_sched_nr_migrate = 8;
+const_debug unsigned int sysctl_sched_nr_migrate = 256;
 #else
 const_debug unsigned int sysctl_sched_nr_migrate = 32;
 #endif
@@ -70,12 +70,6 @@ const_debug unsigned int sysctl_sched_nr_migrate = 32;
 unsigned int sysctl_sched_rt_period = 1000000;
 
 __read_mostly int scheduler_running;
-
-/*
- * part of the period that we allow rt tasks to run in us.
- * default: 0.95s
- */
-int sysctl_sched_rt_runtime = 950000;
 
 DEFINE_STATIC_KEY_FALSE(__turbo_sched_enabled);
 static DEFINE_MUTEX(turbo_sched_lock);
@@ -96,6 +90,16 @@ void turbo_sched_put(void)
 		static_branch_disable(&__turbo_sched_enabled);
 	mutex_unlock(&turbo_sched_lock);
 }
+
+/*
+ * part of the period that we allow rt tasks to run in us.
+ * default: 0.95s
+ */
+#ifdef CONFIG_LL_BRANDING
+int sysctl_sched_rt_runtime = 980000;
+#else
+int sysctl_sched_rt_runtime = 950000;
+#endif
 
 /*
  * __task_rq_lock - lock the rq @p resides on.

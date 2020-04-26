@@ -2,18 +2,9 @@
 /*
  * Scheduler internal types and methods:
  */
-#ifdef CONFIG_SCHED_MUQSS
-#include "MuQSS.h"
-
-/* Begin compatibility wrappers for MuQSS/CFS differences */
-#define rq_rt_nr_running(rq) ((rq)->rt_nr_running)
-#define rq_h_nr_running(rq) ((rq)->nr_running)
-
-#else /* CONFIG_SCHED_MUQSS */
-
-#define rq_rt_nr_running(rq) ((rq)->rt.rt_nr_running)
-#define rq_h_nr_running(rq) ((rq)->cfs.h_nr_running)
-
+#ifdef CONFIG_SCHED_BMQ
+#include "bmq_sched.h"
+#else
 
 #include <linux/sched.h>
 
@@ -2535,29 +2526,8 @@ static inline bool is_per_cpu_kthread(struct task_struct *p)
 }
 #endif
 
-/* MuQSS compatibility functions */
-static inline bool softirq_pending(int cpu)
+static inline int task_running_nice(struct task_struct *p)
 {
-	return false;
+	return (task_nice(p) > 0);
 }
-
-#ifdef CONFIG_64BIT
-static inline u64 read_sum_exec_runtime(struct task_struct *t)
-{
-	return t->se.sum_exec_runtime;
-}
-#else
-static inline u64 read_sum_exec_runtime(struct task_struct *t)
-{
-	u64 ns;
-	struct rq_flags rf;
-	struct rq *rq;
-
-	rq = task_rq_lock(t, &rf);
-	ns = t->se.sum_exec_runtime;
-	task_rq_unlock(rq, t, &rf);
-
-	return ns;
-}
-#endif
-#endif /* CONFIG_SCHED_MUQSS */
+#endif /* !CONFIG_SCHED_BMQ */

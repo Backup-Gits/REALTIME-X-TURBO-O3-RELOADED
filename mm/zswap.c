@@ -79,7 +79,7 @@ static bool zswap_pool_reached_full;
 #define ZSWAP_PARAM_UNSET ""
 
 /* Enable/disable zswap (disabled by default) */
-#ifdef CONFIG_ZEN_INTERACTIVE
+#ifdef CONFIG_LL_BRANDING
 static bool zswap_enabled = true;
 #else
 static bool zswap_enabled;
@@ -93,7 +93,7 @@ static struct kernel_param_ops zswap_enabled_param_ops = {
 module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
 
 /* Crypto compressor to use */
-#ifdef CONFIG_ZEN_INTERACTIVE
+#ifdef CONFIG_LL_BRANDING
 #define ZSWAP_COMPRESSOR_DEFAULT "lz4"
 #else
 #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
@@ -110,7 +110,7 @@ module_param_cb(compressor, &zswap_compressor_param_ops,
 		&zswap_compressor, 0644);
 
 /* Compressed storage zpool to use */
-#ifdef CONFIG_ZEN_INTERACTIVE
+#ifdef CONFIG_LL_BRANDING
 #define ZSWAP_ZPOOL_DEFAULT "z3fold"
 #else
 #define ZSWAP_ZPOOL_DEFAULT "zbud"

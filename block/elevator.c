@@ -623,23 +623,15 @@ static inline bool elv_support_iosched(struct request_queue *q)
 }
 
 /*
- * For single queue devices, default to using mq-deadline. If we have multiple
- * queues or mq-deadline is not available, default to "none".
+ * For single queue devices, default to using bfq. If we have multiple
+ * queues or bfq is not available, default to "none".
  */
 static struct elevator_type *elevator_get_default(struct request_queue *q)
 {
-#ifndef CONFIG_ZEN_INTERACTIVE
 	if (q->nr_hw_queues != 1)
 		return NULL;
-#endif
 
-#if defined(CONFIG_ZEN_INTERACTIVE) && defined(CONFIG_IOSCHED_BFQ)
 	return elevator_get(q, "bfq", false);
-#elif defined(CONFIG_MQ_IOSCHED_DEADLINE_NODEFAULT)
-	return elevator_get(q, "mq-deadline-nodefault", false);
-#else
-	return elevator_get(q, "mq-deadline", false);
-#endif
 }
 
 /*

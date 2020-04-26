@@ -436,6 +436,11 @@
 			embedded devices based on command line input.
 			See Documentation/block/cmdline-partition.rst
 
+	bmq.timeslice=	[KNL] Time slice in us for BMQ scheduler.
+			Format: <int> (must be >= 1000)
+			Default: 4000
+			See Documentation/scheduler/sched-BMQ.txt
+
 	boot_delay=	Milliseconds to delay each printk during boot.
 			Values larger than 10 seconds (10000) are changed to
 			no delay (0).
@@ -2993,6 +2998,8 @@
 	no5lvl		[X86-64] Disable 5-level paging mode. Forces
 			kernel to use 4-level paging instead.
 
+	nofsgsbase	[X86] Disables FSGSBASE instructions.
+
 	no_console_suspend
 			[HW] Never suspend the console
 			Disable suspending of consoles during suspend and
@@ -4371,14 +4378,6 @@
 			[KNL,ARM,CMA] Remoteproc physical memory block.
 			Memory area to be used by remote processor image,
 			managed by CMA.
-
-	rqshare=	[X86] Select the MuQSS scheduler runqueue sharing type.
-			Format: <string>
-			smt -- Share SMT (hyperthread) sibling runqueues
-			mc -- Share MC (multicore) sibling runqueues
-			smp -- Share SMP runqueues
-			none -- So not share any runqueues
-			Default value is mc
 
 	rw		[KNL] Mount root device read-write on boot
 

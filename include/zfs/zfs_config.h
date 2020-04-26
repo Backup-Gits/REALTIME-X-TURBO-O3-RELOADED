@@ -661,7 +661,7 @@
 /* #undef ZFS_IS_GPL_COMPATIBLE */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-0.8.0-737_g6de3e59bd"
+#define ZFS_META_ALIAS "zfs-0.8.0-739_g47c9299fc"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS on Linux"
@@ -691,7 +691,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "737_g6de3e59bd"
+#define ZFS_META_RELEASE "739_g47c9299fc"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "0.8.0"

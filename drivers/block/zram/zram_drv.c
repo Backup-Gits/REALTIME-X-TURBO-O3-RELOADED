@@ -41,7 +41,7 @@ static DEFINE_IDR(zram_index_idr);
 static DEFINE_MUTEX(zram_index_mutex);
 
 static int zram_major;
-#ifdef CONFIG_ZEN_INTERACTIVE
+#ifdef CONFIG_LL_BRANDING
 static const char *default_compressor = "lz4";
 #else
 static const char *default_compressor = "lzo-rle";

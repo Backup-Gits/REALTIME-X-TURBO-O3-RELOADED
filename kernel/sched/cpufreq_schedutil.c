@@ -183,12 +183,7 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	return cpufreq_driver_resolve_freq(policy, freq);
 }
 
-#ifdef CONFIG_SCHED_MUQSS
-#define rt_rq_runnable(rq_rt) rt_rq_is_runnable(rq)
-#else
-#define rt_rq_runnable(rq_rt) rt_rq_is_runnable(&rq->rt)
-#endif
-
+#ifndef CONFIG_SCHED_BMQ
 /*
  * This function computes an effective utilization for the given CPU, to be
  * used for frequency selection given the linear relation: f = u * f_max.
@@ -217,7 +212,7 @@ unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 	struct rq *rq = cpu_rq(cpu);
 
 	if (!IS_BUILTIN(CONFIG_UCLAMP_TASK) &&
-	    type == FREQUENCY_UTIL && rt_rq_runnable(rq)) {
+	    type == FREQUENCY_UTIL && rt_rq_is_runnable(&rq->rt)) {
 		return max;
 	}
 
@@ -306,6 +301,13 @@ static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
 
 	return schedutil_cpu_util(sg_cpu->cpu, util, max, FREQUENCY_UTIL, NULL);
 }
+#else /* CONFIG_SCHED_BMQ */
+static unsigned long sugov_get_util(struct sugov_cpu *sg_cpu)
+{
+	sg_cpu->max = arch_scale_cpu_capacity(sg_cpu->cpu);
+	return sg_cpu->max;
+}
+#endif
 
 /**
  * sugov_iowait_reset() - Reset the IO boost status of a CPU.
@@ -449,7 +451,9 @@ static inline bool sugov_cpu_is_busy(struct sugov_cpu *sg_cpu) { return false; }
  */
 static inline void ignore_dl_rate_limit(struct sugov_cpu *sg_cpu, struct sugov_policy *sg_policy)
 {
+#ifndef CONFIG_SCHED_BMQ
 	if (cpu_bw_dl(cpu_rq(sg_cpu->cpu)) > sg_cpu->bw_dl)
+#endif
 		sg_policy->limits_changed = true;
 }
 
@@ -662,11 +666,7 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 	struct task_struct *thread;
 	struct sched_attr attr = {
 		.size		= sizeof(struct sched_attr),
-#ifdef CONFIG_SCHED_MUQSS
-		.sched_policy	= SCHED_RR,
-#else
 		.sched_policy	= SCHED_DEADLINE,
-#endif
 		.sched_flags	= SCHED_FLAG_SUGOV,
 		.sched_nice	= 0,
 		.sched_priority	= 0,
@@ -696,6 +696,7 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 	}
 
 	ret = sched_setattr_nocheck(thread, &attr);
+
 	if (ret) {
 		kthread_stop(thread);
 		pr_warn("%s: failed to set SCHED_DEADLINE\n", __func__);
@@ -926,6 +927,7 @@ static int __init sugov_register(void)
 core_initcall(sugov_register);
 
 #ifdef CONFIG_ENERGY_MODEL
+#ifndef CONFIG_SCHED_BMQ
 extern bool sched_energy_update;
 extern struct mutex sched_energy_mutex;
 
@@ -956,4 +958,10 @@ void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
 	}
 
 }
+#else /* CONFIG_SCHED_BMQ */
+void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
+				  struct cpufreq_governor *old_gov)
+{
+}
+#endif
 #endif

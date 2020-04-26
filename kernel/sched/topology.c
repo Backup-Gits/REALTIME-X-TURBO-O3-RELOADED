@@ -3,10 +3,8 @@
  * Scheduler topology setup/handling methods
  */
 #include "sched.h"
-#ifdef CONFIG_SCHED_MUQSS
-#include "linux/sched/deadline.h"
-#endif
 
+#ifndef CONFIG_SCHED_BMQ
 DEFINE_MUTEX(sched_domains_mutex);
 
 /* Protected by sched_domains_mutex: */
@@ -445,11 +443,7 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 	struct root_domain *old_rd = NULL;
 	unsigned long flags;
 
-#ifdef CONFIG_SCHED_MUQSS
-	raw_spin_lock_irqsave(rq->lock, flags);
-#else
 	raw_spin_lock_irqsave(&rq->lock, flags);
-#endif
 
 	if (rq->rd) {
 		old_rd = rq->rd;
@@ -475,11 +469,7 @@ void rq_attach_root(struct rq *rq, struct root_domain *rd)
 	if (cpumask_test_cpu(rq->cpu, cpu_active_mask))
 		set_rq_online(rq);
 
-#ifdef CONFIG_SCHED_MUQSS
-	raw_spin_unlock_irqrestore(rq->lock, flags);
-#else
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
-#endif
 
 	if (old_rd)
 		call_rcu(&old_rd->rcu, free_rootdomain);
@@ -1194,8 +1184,10 @@ next:
  */
 
 static int default_relax_domain_level = -1;
+#endif /* CONFIG_SCHED_BMQ */
 int sched_domain_level_max;
 
+#ifndef CONFIG_SCHED_BMQ
 static int __init setup_relax_domain_level(char *str)
 {
 	if (kstrtoint(str, 0, &default_relax_domain_level))
@@ -1437,6 +1429,7 @@ sd_init(struct sched_domain_topology_level *tl,
 
 	return sd;
 }
+#endif /* CONFIG_SCHED_BMQ */
 
 /*
  * Topology list, bottom-up.
@@ -1466,6 +1459,7 @@ void set_sched_topology(struct sched_domain_topology_level *tl)
 	sched_domain_topology = tl;
 }
 
+#ifndef CONFIG_SCHED_BMQ
 #ifdef CONFIG_NUMA
 
 static const struct cpumask *sd_numa_mask(int cpu)
@@ -2340,3 +2334,17 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 	partition_sched_domains_locked(ndoms_new, doms_new, dattr_new);
 	mutex_unlock(&sched_domains_mutex);
 }
+#else /* CONFIG_SCHED_BMQ */
+void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
+			     struct sched_domain_attr *dattr_new)
+{}
+
+#ifdef CONFIG_NUMA
+int __read_mostly		node_reclaim_distance = RECLAIM_DISTANCE;
+
+int sched_numa_find_closest(const struct cpumask *cpus, int cpu)
+{
+	return best_mask_cpu(cpu, cpus);
+}
+#endif /* CONFIG_NUMA */
+#endif
