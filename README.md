@@ -19,7 +19,14 @@
 ## * Optimization For Possible Performance Degradation On Linux FIX Patch For Intel CPU'S. 
 ## * UKSM From -PF Sources For 5.6 Kernel. 
 ## * Some Zen-Kernel Sources Mods Patches. 
-## * Some linux-lucjan Sources Mods Patches. 
+
+
+
+## * Experimental Branch Based on linux-lucjan Sources Mods Patches.
+## * + New FSGBASE Intel + More Intel Dev's Optimizations 
+## * + Turbosched-v5 Openzfs Realtime-Full-RT zstd-linux-image-efi-stub zstd-modules 
+## * + zswap-BTREE  
+
 ## * JavaShin-X Fixes And More. 
 
 
