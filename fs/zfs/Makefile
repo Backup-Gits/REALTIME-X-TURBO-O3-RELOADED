@@ -71,15 +71,15 @@ modules_install-Linux:
 	$(MAKE) -C /usr/src/linux M=`pwd` modules_install \
 		INSTALL_MOD_PATH=$(DESTDIR)$(INSTALL_MOD_PATH) \
 		INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) \
-		KERNELRELEASE=5.6.7-jsX-RTX
+		KERNELRELEASE=5.6.8-jsX-g615933d60-dirty
 	@# Remove extraneous build products when packaging
-	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.6.7-jsX-RTX; \
+	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.6.8-jsX-g615933d60-dirty; \
 	if [ -n "$(DESTDIR)" ]; then \
 		find $$kmoddir -name 'modules.*' | xargs $(RM); \
 	fi
-	sysmap=$(DESTDIR)$(INSTALL_MOD_PATH)/boot/System.map-5.6.7-jsX-RTX; \
+	sysmap=$(DESTDIR)$(INSTALL_MOD_PATH)/boot/System.map-5.6.8-jsX-g615933d60-dirty; \
 	if [ -f $$sysmap ]; then \
-		depmod -ae -F $$sysmap 5.6.7-jsX-RTX; \
+		depmod -ae -F $$sysmap 5.6.8-jsX-g615933d60-dirty; \
 	fi
 
 CTAGS: ctags
@@ -118,7 +118,7 @@ modules_install: modules_install-Linux
 
 modules_uninstall-Linux:
 	@# Uninstall the kernel modules
-	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.6.7-jsX-RTX
+	kmoddir=$(DESTDIR)$(INSTALL_MOD_PATH)/lib/modules/5.6.8-jsX-g615933d60-dirty
 	list='$(obj-m)'; for objdir in $$list; do \
 		$(RM) -R $$kmoddir/$(INSTALL_MOD_DIR)/$$objdir; \
 	done

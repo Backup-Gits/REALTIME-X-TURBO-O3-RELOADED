@@ -3,12 +3,15 @@
 #  find . -type f -name "*.rej" orig
 
 time cd /usr/src/linux
+time rmdir OUT
+time mkdir OUT
+time make CC=gcc LD=ld.bfd O=OUT mrproper 
 
-time make CC=gcc LD=ld.bfd mrproper
+#time cp config-rt .config
 
-time cp config-rt .config
-
-time make CC=gcc LD=ld.bfd oldconfig prepare
+time make CC=gcc LD=ld.bfd O=OUT javashin_defconfig prepare 
+time make CC=gcc LD=ld.bfd O=OUT prepare
+time make CC=gcc LD=ld.bfd O=OUT nconfig
 
 time sleep 2
 
@@ -42,11 +45,12 @@ export LDFLAGS="-Wl,-O2 -Wl,--as-needed,-z,now -fuse-ld=lld -Wl,--hash-style=gnu
 
 #time make CC=clang LD=ld.lld oldconfig  #V=0 -j5 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=x86_64-pc-linux-gnu- CLANG_TRIPLE=x86_64-pc-linux-gnu- oldconfig prepare nconfig
 #clear#sleep 3#time make CC=clang LD=ld.lld #V=0 -j5 LLVM=1 LLVM_IAS=1 CROSS_COMPILE=x86_64-pc-linux-gnu- CLANG_TRIPLE=x86_64-pc-linux-gnu-
+
 time clear ; time sleep 3 ; time date
 
 
-time make CC=clang LD=ld.lld oldconfig
+time make CC=clang LD=ld.lld O=OUT oldconfig
 
 
-time make CC=clang LD=ld.lld -j5 bzImage modules install modules_install headers_install
+time make CC=clang LD=ld.lld O=OUT -j5 bzImage modules install modules_install headers_install
 
